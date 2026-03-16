@@ -1,0 +1,11 @@
+{
+	"configurations": [
+		{
+			"name": "C#: EPGManager.API [http]",
+			"type": "dotnet",
+			"request": "launch",
+			"projectPath": "${workspaceFolder}\\EPGManager.API\\EPGManager.API.csproj",
+			"launchConfigurationId": "TargetFramework=;http"
+		}
+	]
+}

@@ -1,0 +1,18 @@
+{
+	"folders": [
+		{
+			"path": "."
+		}
+	],
+	"settings": {
+		"dotnet.defaultSolution": "EPGManager.slnx"
+	},
+	"extensions": {
+		"recommendations": [
+			"ms-dotnettools.vscode-dotnet-pack",
+			"ms-dotnettools.vscode-dotnet-runtime",
+			"ms-dotnettools.csharp",
+			"redhat.vscode-xml"
+		]
+	}
+}
