@@ -15,7 +15,33 @@ public static class PrimaryOutputBuilder
 
 		sb.AppendLine("#EXTM3U");
 
-		var mappedIds = new HashSet<string>(channels.Select(c => c.M3uTvgId));
+		// Build a lookup of tvg-id -> (extinf, url)
+		var map = BuildChannelMap(lines);
+
+		// Iterate in the user-defined order
+		foreach (var tvgId in config.SelectedChannels)
+		{
+			if (!map.TryGetValue(tvgId, out var entry))
+				continue;
+
+			// Apply rules
+			var rule = config.RecategorizationRules.FirstOrDefault(r => tvgId.Equals(r.MatchTvgId, StringComparison.OrdinalIgnoreCase));
+
+			if (rule?.Hidden == true)
+				continue;
+
+			var extInf = ApplyRecategorization(entry.ExtInf, rule);
+
+			sb.AppendLine(extInf);
+			sb.AppendLine(entry.Url);
+		}
+
+		return sb.ToString();
+	}
+
+	private static Dictionary<string, (string ExtInf, string Url)> BuildChannelMap(string[] lines)
+	{
+		var dict = new Dictionary<string, (string, string)>();
 
 		for (int i = 0; i < lines.Length - 1; i++)
 		{
@@ -24,29 +50,16 @@ public static class PrimaryOutputBuilder
 				continue;
 
 			var tvgId = ExtractTvgId(line);
-			if (tvgId is null || !mappedIds.Contains(tvgId))
-			{
-				i++;
+			if (tvgId == null)
 				continue;
-			}
 
-			var rule = config.RecategorizationRules
-				.FirstOrDefault(r => r.MatchTvgId.Equals(tvgId, StringComparison.OrdinalIgnoreCase));
+			var url = lines[i + 1];
+			dict[tvgId] = (line, url);
 
-			if (rule?.Hidden == true)
-			{
-				i++;
-				continue;
-			}
-
-			var newExtInf = ApplyRecategorization(line, rule);
-
-			sb.AppendLine(newExtInf);
-			sb.AppendLine(lines[i + 1]);
 			i++;
 		}
 
-		return sb.ToString();
+		return dict;
 	}
 
 	private static string? ExtractTvgId(string extInfLine)

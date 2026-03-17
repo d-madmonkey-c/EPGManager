@@ -25,12 +25,15 @@ public static class M3uParser
 			if (!match.Success) continue;
 
 			var attrsPart = match.Groups["attrs"].Value;
-			var name = match.Groups["name"].Value.Trim();
+			var displayName = match.Groups["name"].Value.Trim();
 
 			var attrs = AttrRegex.Matches(attrsPart)
 				.ToDictionary(m => m.Groups["key"].Value, m => m.Groups["value"].Value);
 
 			attrs.TryGetValue("tvg-id", out var tvgId);
+			attrs.TryGetValue("group-title", out var groupTitle);
+			attrs.TryGetValue("tvg-name", out var tvgName);
+			attrs.TryGetValue("tvg-logo", out var tvgLogo);
 
 			if (string.IsNullOrWhiteSpace(tvgId))
 				continue;
@@ -38,10 +41,13 @@ public static class M3uParser
 			result.Add(new ChannelIdentity
 			{
 				M3uTvgId = tvgId,
-				Name = name
+				Name = displayName,
+				OriginalGroupTitle = groupTitle,
+				OriginalTvgName = tvgName,
+				OriginalTvgLogo = tvgLogo
 			});
 
-			i++; // skip URL line
+			i++; // skip URL
 		}
 
 		return result;

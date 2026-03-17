@@ -53,11 +53,17 @@ public class RefreshWorker : BackgroundService
 		var utcDoc = await DownloadAndParseGzipXml(config.UtcUrl, ct);
 		var epgDoc = await DownloadAndParseGzipXml(config.EpgCaUrl, ct);
 
+		// Parse channels
 		var channels = M3uParser.Parse(m3uText);
 
+		// Attach IDs
 		ChannelMapper.AttachUtcIds(channels, utcDoc);
 		ChannelMapper.AttachEpgCaIds(channels, epgDoc);
 
+		// Store available channels for UI
+		_outputStore.AvailableChannels = channels;
+
+		// Build outputs
 		var primaryOut = PrimaryOutputBuilder.Build(m3uText, channels, config);
 		var secondaryOut = SecondaryOutputBuilder.Build(channels, utcDoc, epgDoc);
 
