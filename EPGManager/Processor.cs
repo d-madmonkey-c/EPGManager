@@ -9,19 +9,15 @@ public class Processor
 {
 	private readonly ILogger<Processor> _logger;
 	private readonly ConfigStore _configStore;
-	//private readonly OutputStore _outputStore;
+	private readonly OutputStore _outputStore;
 	private readonly CacheStore _cacheStore;
 	private readonly HttpClient _httpClient = new();
 
-	public Processor(
-		ILogger<Processor> logger,
-		ConfigStore configStore,
-		//OutputStore outputStore,
-		CacheStore cacheStore)
+	public Processor(ILogger<Processor> logger, ConfigStore configStore, OutputStore outputStore, CacheStore cacheStore)
 	{
 		_logger = logger;
 		_configStore = configStore;
-		//_outputStore = outputStore;
+		_outputStore = outputStore;
 		_cacheStore = cacheStore;
 	}
 
@@ -215,6 +211,11 @@ public class Processor
 			_logger.LogError(ex, "Error refreshing EPG");
 			throw;
 		}
+	}
+
+	public void GenerateOutputs()
+	{
+		_outputStore.M3u = M3uBuilder.Build(_configStore.SelectedChannels);
 	}
 
 	private async Task<string> DownloadText(string url, CancellationToken ct)

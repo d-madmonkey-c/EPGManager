@@ -4,8 +4,26 @@ namespace EPGManager;
 
 public class OutputStore
 {
-	public string? PrimaryOutput { get; set; }
-	public string? SecondaryOutputXml { get; set; }
-	public List<Channel> AvailableChannels { get; set; } = new();
-	public HashSet<string> NewChannelIds { get; set; } = new(); // Track which channels are newly discovered
+	private readonly string _m3uPath = Path.Combine(AppContext.BaseDirectory, "cache", "myguide.m3u");
+
+	public string? M3u
+	{
+		get
+		{
+			try
+			{
+				return File.ReadAllText(_m3uPath);
+			}
+			catch
+			{
+				return null;
+			}
+		}
+		set
+		{
+			File.WriteAllText(_m3uPath, value);
+		}
+	}
+
+	public string? Epg { get; set; }
 }

@@ -6,6 +6,7 @@ using EPGManager;
 using EPGManager.Data;
 using System.Text.Json;
 using System.Text.Encodings.Web;
+using System.Diagnostics;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -288,18 +289,24 @@ app.MapGet("/api/list-epgChannels/{sourceId}", async (ConfigStore configStore, C
     ).ToList().OrderBy(c=>c.name);
     return Results.Ok(channels);
 });
-/*
-app.MapGet("/output/primary", (OutputStore store) =>
+
+app.MapGet("/output/m3u", (OutputStore store, Processor processor) =>
 {
-    if (store.PrimaryOutput == null)
-        return Results.NotFound("Primary output not generated yet.");
+    var content = store.M3u;
+    if (content == null)
+    {
+        processor.GenerateOutputs();
+        content = store.M3u;
+        if (content == null)
+            return Results.NotFound("Unable to load or generate content.");
+    }
 
     return Results.File(
-        Encoding.UTF8.GetBytes(store.PrimaryOutput),
+        Encoding.UTF8.GetBytes(content),
         "audio/x-mpegurl",
-        "guide.m3u");
+        "myguide.m3u"
+    );
 });
-*/
 
 /*
 app.MapGet("/output/secondary", (OutputStore store) =>

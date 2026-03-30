@@ -4,59 +4,30 @@ using EPGManager.Data;
 
 namespace EPGManager;
 
-public static class PrimaryOutputBuilder
+public static class M3uBuilder
 {
-	public static string Build(
-		string originalM3u,
-		List<Channel> channels,
-		ConfigStore config)
+	//private const string CHANNEL_DESCRIPTOR = $"#EXTINF:-1 tvg-id=\"{0}\" tvg-name=\"{1}\" tvg-logo=\"{2}\" group-title=\"{3}\",{1}";
+
+	public static string Build(SelectedChannelList channels)
 	{
-		var lines = originalM3u.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 		var sb = new StringBuilder();
 
-		sb.AppendLine("#EXTM3U");
+		sb.AppendLine("#EXTM3U url-tvg=\"http://m3u4u.com/epg/jwmzn12xpqhkp8xky721\"");
 
-		// Build a lookup of tvg-id -> (extinf, url)
-		//var map = BuildChannelMap(lines);
-
-		// Iterate in the user-defined order. Allow each selected channel to appear in multiple groups.
-		var addedEntries = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-
-		foreach (SelectedChannel selectedChannel in config.SelectedChannels)
+		var groups = channels.Select(c => c.Groups[0]).Distinct();
+		foreach (string group in groups)
 		{
-			var tvgId = selectedChannel.Id;
-			// if (!map.TryGetValue(tvgId, out var entry))
-			// 	continue;
-
-			var groupTitles = selectedChannel.Groups?.Where(g => !string.IsNullOrWhiteSpace(g)).Select(g => g.Trim()).Distinct(StringComparer.OrdinalIgnoreCase).ToList() ?? ["Ungrouped"];
-			// if (!groupTitles.Any())
-			// {
-			// 	var fallback = selectedChannel.EffectiveGroupTitle?.Trim();
-			// 	if (!string.IsNullOrWhiteSpace(fallback))
-			// 		groupTitles.Add(fallback);
-			// 	else
-			// 		groupTitles.Add("Ungrouped");
-			// }
-
-			foreach (var groupTitle in groupTitles)
+			var groupChannels = channels.Where(c => c.Groups.Contains(group));
+			foreach (SelectedChannel channel in groupChannels)
 			{
-				var key = $"{tvgId}||{groupTitle}";
-				if (addedEntries.Contains(key))
-					continue;
-
-				addedEntries.Add(key);
-/*
-				var extInf = ApplySelectedChannelOverrides(entry.ExtInf, selectedChannel);
-				extInf = Regex.Replace(extInf, "group-title=\"[^\"]*\"", $"group-title=\"{groupTitle}\"");
-
-				sb.AppendLine(extInf);
-				sb.AppendLine(entry.Url);*/
+				sb.AppendLine($"#EXTINF:-1 tvg-id=\"{channel.Id}\" tvg-name=\"{channel.Name}\" tvg-logo=\"{channel.LogoUri}\" group-title=\"{group}\",{channel.Name}");
+				sb.AppendLine(channel.Uri);
 			}
 		}
-
 		return sb.ToString();
 	}
 
+/*
 	private static Dictionary<string, (string ExtInf, string Url)> BuildChannelMap(string[] lines)
 	{
 		var dict = new Dictionary<string, (string, string)>();
@@ -109,7 +80,7 @@ public static class PrimaryOutputBuilder
 	{
 		string updated = extInf;
 
-/*/
+/ *
 		if (config.OverrideGroupTitle != null)
 			updated = Regex.Replace(updated, "group-title=\"[^\"]*\"", $"group-title=\"{config.OverrideGroupTitle}\"");
 
@@ -118,7 +89,8 @@ public static class PrimaryOutputBuilder
 
 		if (config.OverrideTvgLogo != null)
 			updated = Regex.Replace(updated, "tvg-logo=\"[^\"]*\"", $"tvg-logo=\"{config.OverrideTvgLogo}\"");
-*/
+* /
 		return updated;
 	}
+	*/
 }

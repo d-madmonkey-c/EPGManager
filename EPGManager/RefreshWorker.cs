@@ -93,7 +93,7 @@ public class RefreshWorker : BackgroundService
 			if (!string.IsNullOrWhiteSpace(cachedM3u))
 			{
 				var channels = M3uParser.Parse(cachedM3u);
-				_outputStore.AvailableChannels = channels;
+				//_outputStore.AvailableChannels = channels;
 				_logger.LogInformation($"Loaded {channels.Count} channels from cache on startup.");
 			}
 		}
