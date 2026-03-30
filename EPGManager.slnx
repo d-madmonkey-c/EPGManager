@@ -1,3 +1,4 @@
 <Solution>
+  <Project Path="EPGManager.Test/EPGManager.Test.csproj" />
   <Project Path="EPGManager/EPGManager.csproj" />
 </Solution>
