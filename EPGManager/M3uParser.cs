@@ -1,6 +1,7 @@
 using System.Text.RegularExpressions;
+using EPGManager.Data;
 
-namespace EPGManager.API;
+namespace EPGManager;
 
 public static class M3uParser
 {
@@ -10,10 +11,10 @@ public static class M3uParser
 	private static readonly Regex AttrRegex =
 		new(@"(?<key>[a-zA-Z0-9\-]+)=""(?<value>[^""]*)""", RegexOptions.Compiled);
 
-	public static List<ChannelIdentity> Parse(string m3uContent)
+	public static ChannelList Parse(string m3uContent)
 	{
 		var lines = m3uContent.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-		var result = new List<ChannelIdentity>();
+		var result = new ChannelList();
 
 		for (int i = 0; i < lines.Length - 1; i++)
 		{
@@ -27,8 +28,7 @@ public static class M3uParser
 			var attrsPart = match.Groups["attrs"].Value;
 			var displayName = match.Groups["name"].Value.Trim();
 
-			var attrs = AttrRegex.Matches(attrsPart)
-				.ToDictionary(m => m.Groups["key"].Value, m => m.Groups["value"].Value);
+			var attrs = AttrRegex.Matches(attrsPart).ToDictionary(m => m.Groups["key"].Value, m => m.Groups["value"].Value);
 
 			attrs.TryGetValue("tvg-id", out var tvgId);
 			attrs.TryGetValue("group-title", out var groupTitle);
@@ -38,16 +38,18 @@ public static class M3uParser
 			if (string.IsNullOrWhiteSpace(tvgId))
 				continue;
 
-			result.Add(new ChannelIdentity
+			result.Add(new Channel
 			{
-				M3uTvgId = tvgId,
-				Name = displayName,
-				OriginalGroupTitle = groupTitle,
-				OriginalTvgName = tvgName,
-				OriginalTvgLogo = tvgLogo
+				Id = tvgId,
+				//Name = displayName,
+				Name = displayName ?? tvgName,
+				Group = groupTitle,
+				//OriginalTvgName = tvgName,
+				LogoUri = tvgLogo,
+				Uri = lines[++i]
 			});
 
-			i++; // skip URL
+			//i++; // skip URL
 		}
 
 		return result;

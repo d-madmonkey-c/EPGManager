@@ -1,0 +1,107 @@
+<html>
+
+<head>
+	<link rel="stylesheet" href="styles.css?{0}" />
+	<script src="scripts.js?{1}"></script>
+</head>
+
+<body>
+	<h1>EPG Manager</h1>
+	<button type="button" onclick="triggerRefresh()">Refresh Data</button>
+	<form method='post' action='/config' onsubmit='beforeSubmit()'>
+		<h2>Source URLs</h2>
+		<label>Primary M3U URL:</label><br />
+		<div style='display: flex; gap: 8px; margin-bottom: 12px;'>
+			<input type="text" name="PrimaryUrl" value="{2}" size="80" />
+			<button type="button" onclick="refreshM3u()" title="Download and cache M3U file">↻ Refresh M3U</button>
+		</div>
+
+		<h3>EPG Source URLs (Prioritized)</h3>
+		<table id="url-table">
+			<thead>
+				<tr>
+					<th class="column-priority">Priority</th>
+					<th class="column-name">Name</th>
+					<th class="column-url">URL</th>
+					<th class="column-actions">Actions</th>
+				</tr>
+			</thead>
+			<tbody id="url-list">
+				{3}
+			</tbody>
+		</table>
+		<button type="button" onclick="addUrlRow()">Add URL</button><br/>
+		<button type="button" onclick="refreshAllEpg()" title="Download and cache all EPG files">↻ Refresh All EPG</button><br/><br/>
+		<input type='hidden' name='EpgUrls' id='epgurls-input' />
+
+		<div class='panel' id='all-channels'>
+			<h2>Available Channels</h2>
+			<div class="panel-body">
+			{4}
+			</div>
+		</div>
+		<div class="panel" id="selected-channels">
+			<h2>Selected Channels</h2>
+			<div id='selected-list'>
+			{5}
+			</div>
+		</div>
+		<div class='panel' id='channel-settings'>
+			<h2>Channel Settings</h2>
+			<div id='settings-placeholder' style="display: block;">
+				<p>Select a channel to edit settings.</p>
+			</div>
+			<div id='settings-content' style="display: none;">
+				<h3>Channel ID</h3>
+				<div style="margin-bottom: 20px;">
+					<h4>Default Values</h4>
+					<div style="display: inline-block;">Name:</div><div id='settings-default-name' style="display: inline-block;"></div><br />
+					<div style="display: inline-block;">Logo:</div><div id='settings-default-logo' style="display: inline-block;"></div><br />
+					<div style="display: inline-block;">Group:</div><div id='settings-default-group' style="display: inline-block;"></div><br />
+				</div>
+
+				<h4>Overrides</h4>
+				<label>Name:</label><input id='settings-name' type='text' /><br />
+				<label>Logo:</label><input id='settings-logo' type='text' /><br />
+				<label>Groups:</label><input id='settings-groups' type="text"><br />
+
+				<h4>EPG Mappings</h4>
+				<div id="epg-mappings">
+					<p>No EPG mappings</p>
+				</div>
+				<button id="settings-addepg" type="button">Add EPG Mapping</button><br /><br />
+
+				<button id="settings-apply" type='button'>Apply Settings</button>
+			</div>
+		</div>
+
+		<div style='clear: both;'></div>
+
+		<input type='hidden' name='SelectedChannels' id='selected-channels-input' />
+		<input type='hidden' name='RulesJson' id='rules-json-input' value='{6}' />
+
+		<br />
+		<button type='submit'>Save</button>
+	</form>
+
+	<!-- EPG Mapping Modal -->
+	<div id="epg-mapping-modal" class="modal" style="display: none;">
+		<div class="modal-content">
+			<span class="close" onclick="closeEpgMappingModal()">&times;</span>
+			<h2>Add EPG Mapping</h2>
+			<p>Select an EPG source and channel to map to this M3U channel.</p>
+			<label for="epg-source-select">EPG Source:</label>
+			<select id="epg-source-select" onchange="loadEpgChannels()">
+				<option value="">Select EPG source...</option>
+			</select><br/><br/>
+			<label for="epg-channel-select">EPG Channel:</label>
+			<select id="epg-channel-select">
+				<option value="">Select EPG source first...</option>
+			</select><br/><br/>
+			<button id="modal-add" type="button">Add Mapping</button>
+			<button type="button" onclick="closeEpgMappingModal()">Cancel</button>
+		</div>
+	</div>
+</body>
+
+</html>

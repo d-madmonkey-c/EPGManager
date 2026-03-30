@@ -1,4 +1,4 @@
-namespace EPGManager.API;
+namespace EPGManager;
 
 public class RecategorizationRule
 {

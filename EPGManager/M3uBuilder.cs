@@ -1,14 +1,15 @@
 using System.Text;
 using System.Text.RegularExpressions;
+using EPGManager.Data;
 
-namespace EPGManager.API;
+namespace EPGManager;
 
 public static class PrimaryOutputBuilder
 {
 	public static string Build(
 		string originalM3u,
-		List<ChannelIdentity> channels,
-		SourceConfig config)
+		List<Channel> channels,
+		ConfigStore config)
 	{
 		var lines = originalM3u.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 		var sb = new StringBuilder();
@@ -16,24 +17,41 @@ public static class PrimaryOutputBuilder
 		sb.AppendLine("#EXTM3U");
 
 		// Build a lookup of tvg-id -> (extinf, url)
-		var map = BuildChannelMap(lines);
+		//var map = BuildChannelMap(lines);
 
-		// Iterate in the user-defined order
-		foreach (var tvgId in config.SelectedChannels)
+		// Iterate in the user-defined order. Allow each selected channel to appear in multiple groups.
+		var addedEntries = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+		foreach (SelectedChannel selectedChannel in config.SelectedChannels)
 		{
-			if (!map.TryGetValue(tvgId, out var entry))
-				continue;
+			var tvgId = selectedChannel.Id;
+			// if (!map.TryGetValue(tvgId, out var entry))
+			// 	continue;
 
-			// Apply rules
-			var rule = config.RecategorizationRules.FirstOrDefault(r => tvgId.Equals(r.MatchTvgId, StringComparison.OrdinalIgnoreCase));
+			var groupTitles = selectedChannel.Groups?.Where(g => !string.IsNullOrWhiteSpace(g)).Select(g => g.Trim()).Distinct(StringComparer.OrdinalIgnoreCase).ToList() ?? ["Ungrouped"];
+			// if (!groupTitles.Any())
+			// {
+			// 	var fallback = selectedChannel.EffectiveGroupTitle?.Trim();
+			// 	if (!string.IsNullOrWhiteSpace(fallback))
+			// 		groupTitles.Add(fallback);
+			// 	else
+			// 		groupTitles.Add("Ungrouped");
+			// }
 
-			if (rule?.Hidden == true)
-				continue;
+			foreach (var groupTitle in groupTitles)
+			{
+				var key = $"{tvgId}||{groupTitle}";
+				if (addedEntries.Contains(key))
+					continue;
 
-			var extInf = ApplyRecategorization(entry.ExtInf, rule);
+				addedEntries.Add(key);
+/*
+				var extInf = ApplySelectedChannelOverrides(entry.ExtInf, selectedChannel);
+				extInf = Regex.Replace(extInf, "group-title=\"[^\"]*\"", $"group-title=\"{groupTitle}\"");
 
-			sb.AppendLine(extInf);
-			sb.AppendLine(entry.Url);
+				sb.AppendLine(extInf);
+				sb.AppendLine(entry.Url);*/
+			}
 		}
 
 		return sb.ToString();
@@ -84,6 +102,23 @@ public static class PrimaryOutputBuilder
 		if (rule.NewTvgLogo != null)
 			updated = Regex.Replace(updated, "tvg-logo=\"[^\"]*\"", $"tvg-logo=\"{rule.NewTvgLogo}\"");
 
+		return updated;
+	}
+
+	private static string ApplySelectedChannelOverrides(string extInf, SelectedChannelList config)
+	{
+		string updated = extInf;
+
+/*/
+		if (config.OverrideGroupTitle != null)
+			updated = Regex.Replace(updated, "group-title=\"[^\"]*\"", $"group-title=\"{config.OverrideGroupTitle}\"");
+
+		if (config.OverrideTvgName != null)
+			updated = Regex.Replace(updated, "tvg-name=\"[^\"]*\"", $"tvg-name=\"{config.OverrideTvgName}\"");
+
+		if (config.OverrideTvgLogo != null)
+			updated = Regex.Replace(updated, "tvg-logo=\"[^\"]*\"", $"tvg-logo=\"{config.OverrideTvgLogo}\"");
+*/
 		return updated;
 	}
 }

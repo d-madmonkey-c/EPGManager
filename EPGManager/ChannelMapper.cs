@@ -1,49 +1,34 @@
 using System.Xml.Linq;
+using EPGManager.Data;
 
-namespace EPGManager.API;
+namespace EPGManager;
 
 public static class ChannelMapper
 {
-	public static void AttachUtcIds(List<ChannelIdentity> channels, XDocument utcDoc)
+	public static void AttachSecondaryIds(List<Channel> channels, List<XDocument> secondaryDocs, List<EpgSource> sources)
 	{
-		var utcChannels = utcDoc.Root!
-			.Elements("channel")
-			.Select(ch => new
-			{
-				Id = (string)ch.Attribute("id")!,
-				Name = (string)ch.Element("display-name")!
-			})
-			.ToList();
-
-		foreach (var ch in channels)
+		for (int i = 0; i < sources.Count; i++)
 		{
-			var match = utcChannels.FirstOrDefault(u =>
-				string.Equals(u.Id, ch.M3uTvgId, StringComparison.OrdinalIgnoreCase) ||
-				Normalize(u.Name) == Normalize(ch.Name));
+			var doc = secondaryDocs[i];
+			var source = sources[i];
+			var sourceChannels = doc.Root!
+				.Elements("channel")
+				.Select(ch => new
+				{
+					Id = (string)ch.Attribute("id")!,
+					Name = (string)ch.Element("display-name")!
+				})
+				.ToList();
 
-			if (match != null)
-				ch.UtcId = match.Id;
-		}
-	}
-
-	public static void AttachEpgCaIds(List<ChannelIdentity> channels, XDocument epgDoc)
-	{
-		var epgChannels = epgDoc.Root!
-			.Elements("channel")
-			.Select(ch => new
+			foreach (var ch in channels)
 			{
-				Id = (string)ch.Attribute("id")!,
-				Name = (string)ch.Element("display-name")!
-			})
-			.ToList();
+				var match = sourceChannels.FirstOrDefault(s =>
+					string.Equals(s.Id, ch.Id, StringComparison.OrdinalIgnoreCase) ||
+					Normalize(s.Name) == Normalize(ch.Name));
 
-		foreach (var ch in channels)
-		{
-			var match = epgChannels.FirstOrDefault(e =>
-				Normalize(e.Name) == Normalize(ch.Name));
-
-			if (match != null)
-				ch.EpgCaId = match.Id;
+				//if (match != null)
+					//ch.[source.Name] = match.Id;
+			}
 		}
 	}
 

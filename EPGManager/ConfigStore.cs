@@ -1,25 +1,25 @@
-namespace EPGManager.API;
+using System.Text.Json;
+using EPGManager.Data;
+
+namespace EPGManager;
 
 public class ConfigStore
 {
-	private readonly string _path = Path.Combine(AppContext.BaseDirectory, "config.json");
+	private readonly string SourceConfigPath = Path.Combine(AppContext.BaseDirectory, "config", "sourceconfig.json");
+	private readonly string SelectedChannelsPath = Path.Combine(AppContext.BaseDirectory, "config", "selectedchannels.json");
 
-	public async Task<SourceConfig> LoadAsync()
+	public SourceConfig SourceConfig { get; private set; } = new SourceConfig();
+	public SelectedChannelList SelectedChannels { get; private set; } = new SelectedChannelList();
+
+	public void LoadAll()
 	{
-		if (!File.Exists(_path))
-			return new SourceConfig();
-
-		var json = await File.ReadAllTextAsync(_path);
-		return System.Text.Json.JsonSerializer.Deserialize<SourceConfig>(json)
-			   ?? new SourceConfig();
+		SourceConfig = Utility.LoadJson<SourceConfig>(SourceConfigPath) ?? new SourceConfig();
+		SelectedChannels = Utility.LoadJson<SelectedChannelList>(SelectedChannelsPath) ?? new SelectedChannelList();
 	}
 
-	public async Task SaveAsync(SourceConfig config)
+	public void SaveAll()
 	{
-		var json = System.Text.Json.JsonSerializer.Serialize(config, new System.Text.Json.JsonSerializerOptions
-		{
-			WriteIndented = true
-		});
-		await File.WriteAllTextAsync(_path, json);
+		Utility.SaveJson(SourceConfigPath, SourceConfig);
+		Utility.SaveJson(SelectedChannelsPath, SelectedChannels);
 	}
 }
