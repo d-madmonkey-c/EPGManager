@@ -16,4 +16,12 @@ public class EpgProgramme
 	public string Description { get; set; } = string.Empty;
 	public DateTime StartTime { get; set; }
 	public DateTime EndTime { get; set; }
+
+	public bool IsOverlapping(EpgProgramme target)
+	{
+		return
+			(StartTime == target.StartTime && EndTime == target.EndTime)
+			|| StartTime.IsWithin(target.StartTime, target.EndTime)
+			|| EndTime.IsWithin(target.StartTime, target.EndTime);
+	}
 }

@@ -73,7 +73,7 @@ function showSettings(channelNameElement) {
 	var name = channelNameElement.dataset.name;
 	var logo = channelNameElement.dataset.logo;
 	var groups = channelNameElement.dataset.groups;
-	var epgIds = channelNameElement.dataset.epgIds;
+	var epgIds = channelNameElement.dataset.epgids;
 
 	var sourceChannel = document.getElementById(`available-${id}`);
 	var sourceName = sourceChannel.dataset.name;
@@ -119,21 +119,26 @@ function getSelectedChannel(tvgId) {
 */
 
 function renderEpgMappings(epgIds) {
-	if (!epgIds) return '<p>No EPG mappings</p>';
-
 	/*
 	<div class="icon-trash" style="float: left">
-    	<div class="trash-lid" style="background-color: #2CC3B5"></div>
-    	<div class="trash-container" style="background-color: #2CC3B5"></div>
-    	<div class="trash-line-1"></div>
-    	<div class="trash-line-2"></div>
-    	<div class="trash-line-3"></div>
-  	</div>
+		<div class="trash-lid" style="background-color: #2CC3B5"></div>
+		<div class="trash-container" style="background-color: #2CC3B5"></div>
+		<div class="trash-line-1"></div>
+		<div class="trash-line-2"></div>
+		<div class="trash-line-3"></div>
+		</div>
 	<div class="icon-trash" style="float: left"><div class="trash-lid" style="background-color: #2CC3B5"></div><div class="trash-container" style="background-color: #2CC3B5"></div><div class="trash-line-1"></div><div class="trash-line-2"></div><div class="trash-line-3"></div></div>
-  */
+	*/
+	var epgs = null;
+	try {
+		epgs = JSON.parse(epgIds);
+	} catch (ex) {
+		console.error(ex);
+	}
+	if (!epgs || epgs.length <= 0) return '<p>No EPG mappings</p>';
 	var html = '<ul id="settings-epgList">';
-	for (var [sourceId, sourceName, epgId] of Object.entries(epgIds)) {
-		html += `<li data-sourceId="${sourceId}" data-sourceName="${sourceName}" data-epgId="${epgId}">${sourceName}: ${epgId}</li>`;
+	for (var epg of epgs) {
+		html += `<li data-sourceId="${epg.SourceId}" data-sourceName="${epg.SourceName}" data-epgId="${epg.EpgId}">${epg.SourceName}: ${epg.EpgId}</li>`;
 	}
 	html += '</ul>';
 	return html;
@@ -270,10 +275,16 @@ function addUrlRow(name = '', url = '', priority = '') {
 	row.classList.add('changed');
 	row.dataset.id = '';
 	row.innerHTML = `
-        <td><input type="number" name="priority" value="${priority}" min="1" required></td>
-        <td><input type="text" name="name" value="${name}" placeholder="EPG Source Name" required></td>
-        <td><input type="url" name="url" value="${url}" required></td>
-        <td><button type="button" onclick="removeUrlRow(this)">Remove</button></td>
+        <td class="column-priority"><input style="width:100%" type="number" name="priority" value="${priority}" min="1" required></td>
+        <td class="column-name"><input style="width:100%" type="text" name="name" value="${name}" placeholder="EPG Source Name" required></td>
+        <td class="column-url"><input style="width:100%" type="url" name="url" value="${url}" required></td>
+        <td class="column-actions"><div class="icon-trash" style="float: left" onclick='removeUrlRow(this)'>
+			<div class="trash-lid" style="background-color: #4d4d4d"></div>
+			<div class="trash-container" style="background-color: #4d4d4d"></div>
+			<div class="trash-line-1"></div>
+			<div class="trash-line-2"></div>
+			<div class="trash-line-3"></div>
+		</div></td>
     `;
 	tbody.appendChild(row);
 }

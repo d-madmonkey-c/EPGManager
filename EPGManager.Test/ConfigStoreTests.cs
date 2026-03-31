@@ -14,11 +14,11 @@ public class ConfigStoreTests
                 Name = "Test Channel 1 Custom",
                 LogoUri = "http://example.com/logo1_custom.png",
                 Uri = "http://example.com/channel1.m3u",
-                Groups = new List<string> { "Group A", "Group B" },
+                Groups = new List<string> { "Group A", "Group B" }/*,
                 EpgChannelIds = new Dictionary<string, string> {
                     { "source1", "epg_channel_1" },
                     { "source2", "epg_channel_2" }
-                }
+                }*/
             },
             new SelectedChannel
             {

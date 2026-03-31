@@ -216,6 +216,7 @@ public class Processor
 	public void GenerateOutputs()
 	{
 		_outputStore.M3u = M3uBuilder.Build(_configStore.SelectedChannels);
+		_outputStore.Epg = EpgBuilder.Build(_configStore.SelectedChannels, _configStore.SourceConfig.EpgUrls, _cacheStore).ToString();
 	}
 
 	private async Task<string> DownloadText(string url, CancellationToken ct)

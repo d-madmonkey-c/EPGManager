@@ -1,85 +1,76 @@
+using System.Diagnostics.Eventing.Reader;
 using System.Xml.Linq;
 using EPGManager.Data;
 
 namespace EPGManager;
 
-public static class SecondaryOutputBuilder
+public static class EpgBuilder
 {
-	public static XDocument Build(
-		List<Channel> channels,
-		List<XDocument> secondaryDocs,
-		List<EpgSource> sources,
-		List<SelectedChannel> selectedChannels)
+	private const string PROGRAMME_TIME_FORMAT = "yyyyMMddHHmmss zzz";
+
+	public static XDocument Build(SelectedChannelList channels, List<EpgSource> sources, CacheStore cacheStore)
 	{
+		ChannelMappingList channelMappings = new ChannelMappingList(channels.SelectMany(c => c.EpgChannelIds));
+		EpgProgrammeList selectedProgrammes = new EpgProgrammeList();
+
 		var root = new XElement("tv");
-		var selectedChannelIds = new HashSet<string>(selectedChannels.Select(c => c.Id));
+		root.SetAttributeValue("date", DateTime.Now.ToString(PROGRAMME_TIME_FORMAT));
+		root.SetAttributeValue("generator-info-name", "EPG Manager");
+		root.SetAttributeValue("generator-info-url", ""); // TODO : Host Url, same goes for logos.
 
-		foreach (var ch in channels.Where(c => selectedChannelIds.Contains(c.Id)))
+		// List the channels
+		XElement channelElement, displayNameElement, iconElement;
+		foreach (SelectedChannel channel in channels)
 		{
-			var selectedConfig = selectedChannels.First(c => c.Id == ch.Id);
+			channelElement = new XElement("channel");
+			channelElement.SetAttributeValue("Id", channel.Id);
+			displayNameElement = new XElement("display-name");
+			displayNameElement.SetAttributeValue("lang", "en");
+			displayNameElement.Value = channel.Name;
+			channelElement.Add(displayNameElement);
+			iconElement = new XElement("icon");
+			iconElement.SetAttributeValue("src", channel.LogoUri);
+			channelElement.Add(iconElement);
+			root.Add(channelElement);
+		}
 
-			// Add channel metadata from highest priority source
-			XElement? channelElement = null;
-			int highestPriority = int.MaxValue;
-			for (int i = 0; i < sources.Count; i++)
+		XElement programmeElement, titleElement, descElement;
+		foreach (EpgSource source in sources.OrderBy(s => s.Priority).ThenBy(s => s.Name))
+		{
+			var mappings = channelMappings[source.Id];
+			var programmes = cacheStore.EpgProgrammes[source.Id].Where(p => mappings.ContainsKey(p.ChannelId));
+			/* Debug */
+			var test1 = cacheStore.EpgProgrammes[source.Id].Select(p => p.ChannelId).Distinct().ToList();
+			var test2 = programmes.Select(p => p.ChannelId).Distinct().ToList();
+			string channelId;
+			foreach (EpgProgramme programme in programmes)
 			{
-				var source = sources[i];
-				// Use EPG IDs from selected config, falling back to auto-detected ones
-				var sourceChannelId = /*selectedConfig.EpgChannelIds.GetValueOrDefault(source.Name) ??*/ ch.Id;
-
-				if (!string.IsNullOrEmpty(sourceChannelId))
+				channelId = mappings[programme.ChannelId];
+				if (selectedProgrammes.Any(p =>
+					p.ChannelId == channelId
+					&& p.IsOverlapping(programme)
+				)) continue;
+				programmeElement = new XElement("programme");
+				programmeElement.SetAttributeValue("start", programme.StartTime.ToString(PROGRAMME_TIME_FORMAT));
+				programmeElement.SetAttributeValue("stop", programme.EndTime.ToString(PROGRAMME_TIME_FORMAT));
+				programmeElement.SetAttributeValue("channel", channelId);
+				titleElement = new XElement("title");
+				titleElement.SetAttributeValue("lang", "en");
+				titleElement.SetValue(programme.Title);
+				programmeElement.Add(titleElement);
+				descElement = new XElement("desc");
+				descElement.SetAttributeValue("lang", "en");
+				descElement.SetValue(programme.Description);
+				programmeElement.Add(descElement);
+				root.Add(programmeElement);
+				selectedProgrammes.Add(new EpgProgramme
 				{
-					var sourceChannel = secondaryDocs[i].Root!
-						.Elements("channel")
-						.FirstOrDefault(x => (string)x.Attribute("id") == sourceChannelId);
-					if (sourceChannel != null && source.Priority < highestPriority)
-					{
-						channelElement = new XElement(sourceChannel);
-						channelElement.SetAttributeValue("id", ch.Id);
-						highestPriority = source.Priority;
-					}
-				}
-			}
-			if (channelElement != null)
-				root.Add(channelElement);
-
-			// Collect programmes with priorities
-			var programmes = new List<(XElement prog, int priority)>();
-			for (int i = 0; i < sources.Count; i++)
-			{
-				var source = sources[i];
-				// Use EPG IDs from selected config, falling back to auto-detected ones
-				var sourceChannelId = /*selectedConfig.EpgChannelIds.GetValueOrDefault(source.Name) ??*/ ch.Id;
-
-				if (!string.IsNullOrEmpty(sourceChannelId))
-				{
-					var progs = secondaryDocs[i].Root!
-						.Elements("programme")
-						.Where(p => (string)p.Attribute("channel") == sourceChannelId)
-						.Select(p => (new XElement(p), source.Priority));
-					programmes.AddRange(progs);
-				}
-			}
-
-			// Sort by priority ascending
-			programmes.Sort((a, b) => a.priority.CompareTo(b.priority));
-
-			// Add non-overlapping programmes
-			var addedProgrammes = new List<(DateTime start, DateTime stop)>();
-			foreach (var (prog, _) in programmes)
-			{
-				var startStr = (string)prog.Attribute("start")!;
-				var stopStr = (string)prog.Attribute("stop")!;
-				if (DateTime.TryParse(startStr, out var start) && DateTime.TryParse(stopStr, out var stop))
-				{
-					bool overlaps = addedProgrammes.Any(ap => ap.start < stop && ap.stop > start);
-					if (!overlaps)
-					{
-						prog.SetAttributeValue("channel", ch.Id);
-						root.Add(prog);
-						addedProgrammes.Add((start, stop));
-					}
-				}
+					ChannelId = channelId,
+					Title = programme.Title,
+					Description = programme.Description,
+					StartTime = programme.StartTime,
+					EndTime = programme.EndTime
+				});
 			}
 		}
 

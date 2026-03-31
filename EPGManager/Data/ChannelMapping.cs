@@ -11,13 +11,13 @@ public class ChannelMappingList : List<ChannelMapping>
 	public ChannelMappingList(IEnumerable<ChannelMapping> items) : base(items) { }
 
 	[JsonIgnore]
-	public object this[string sourceId]
+	public Dictionary<string, string> this[string sourceId]
 	{
 		get => this.Where(cm => cm.SourceId == sourceId).Select(cm => new { cm.EpgId, cm.ChannelId }).ToDictionary(x => x.EpgId, x => x.ChannelId);
 	}
 
 	[JsonIgnore]
-	public object this[string sourceId, string epgId]
+	public string this[string sourceId, string epgId]
 	{
 		get => this.FirstOrDefault(cm => cm.SourceId == sourceId && cm.EpgId == epgId)?.ChannelId ?? epgId;
 	}

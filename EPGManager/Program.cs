@@ -36,9 +36,9 @@ app.MapGet("/", async (ConfigStore configStore, CacheStore cacheStore, OutputSto
     var selectedChannels = configStore.SelectedChannels;
 
     // Build EPG URL list HTML
-    var sources = new List<(string Name, string Url, int Priority)>();
-    sources.AddRange(config.EpgUrls.Select(s => (s.Name, s.Url, s.Priority)));
-    sources = sources.OrderBy(s => s.Priority).ToList();  // Sort by priority
+    // var sources = new List<(string Name, string Url, int Priority)>();
+    // sources.AddRange(config.EpgUrls.Select(s => (s.Name, s.Url, s.Priority)));
+    // sources = sources.OrderBy(s => s.Priority).ToList();  // Sort by priority
     string templatePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "epgurl.partial.html");
     string epgHtml = File.ReadAllText(templatePath);
     var urlListHtml = string.Join("", config.EpgUrls
@@ -67,89 +67,37 @@ app.MapGet("/", async (ConfigStore configStore, CacheStore cacheStore, OutputSto
         return channelItemHtml;
     })))));
 
-    /*
-    var selectedGroupEntries = new List<(string GroupName, Channel Channel, SelectedChannelList Config)>();
-    var selectedChannelsById = channels.ToDictionary(c => c.Id, c => c);
-
-    foreach (var selectedConfig in configStore.SelectedChannels)
-    {
-        if (!selectedChannelsById.TryGetValue(selectedConfig.Id, out var baseChannel))
-            continue;
-
-        var groupTitles = selectedConfig.Groups?
-            .Select(g => g.Trim())
-            .Where(g => !string.IsNullOrEmpty(g))
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList();
-
-        if (!groupTitles.Any())
-            groupTitles.Add("Ungrouped");
-
-        foreach (var group in groupTitles)
-        {
-            / *var channelCopy = new Channel
-            {
-                Id = baseChannel.Id,
-                Name = selectedConfig.EffectiveName,
-                Group = group,
-                OriginalTvgName = baseChannel.OriginalTvgName,
-                LogoUri = baseChannel.LogoUri,
-                SecondaryChannelIds = baseChannel.SecondaryChannelIds
-            };
-
-            if (!selectedGroupEntries.Any(e => e.GroupName.Equals(group, StringComparison.OrdinalIgnoreCase) && e.Channel.Id == channelCopy.Id))
-            {
-                selectedGroupEntries.Add((group, channelCopy, selectedConfig));
-            }* /
-        }
-    }
-    */
-
-    /*var orderedGroupNames = config.GroupOrder
-        .Where(g => selectedGroupEntries.Any(e => e.GroupName.Equals(g, StringComparison.OrdinalIgnoreCase)))
-        .Concat(selectedGroupEntries.Select(e => e.GroupName)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .Except(config.GroupOrder, StringComparer.OrdinalIgnoreCase))
-        .ToList();*/
-
-    // templatePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "selectedgroup.partial.html");
-    // string selectedGroupHtml = File.ReadAllText(templatePath);
     templatePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "selectedchannel.partial.html");
     channelHtml = File.ReadAllText(templatePath);
 
-    /*
-    var selectedChannelsHtml = string.Join("", orderedGroupNames.Select(groupName =>
-    {
-        var groupChannels = selectedGroupEntries
-            .Where(e => e.GroupName.Equals(groupName, StringComparison.OrdinalIgnoreCase))
-            .ToList();
-
-        var channelHtmlContent = string.Join("", groupChannels.Select(e =>
+    // TODO - Add SourceName
+    var selectedChannelsHtml = string.Join("", selectedChannels.Select(c => string.Format(
+        channelHtml,
+        c.Id,
+        c.Name,
+        c.LogoUri,
+        c.Uri,
+        string.Join(", ", c.Groups),
+        HtmlEncoder.Default.Encode(JsonSerializer.Serialize(c.EpgChannelIds.Select(eci => new
         {
-            var cfg = e.Config;
-            var epgIdsJson = System.Text.Json.JsonSerializer.Serialize(cfg.EpgChannelIds);
-            var groupTitlesJson = System.Text.Json.JsonSerializer.Serialize(cfg.GroupTitles);
+            SourceId = eci.SourceId,
+            SourceName = config.EpgUrls.First(eu => eu.Id == eci.SourceId).Name,
+            EpgId = eci.EpgId
+        }
+    ))))));
 
-            return string.Format(channelHtml, e.Channel.Id, e.Channel.Name)
-                .Replace("<div class='channel-item'", $"<div class='channel-item' data-original-name=\"{cfg.OriginalName}\" data-original-group-title=\"{cfg.OriginalGroupTitle}\" data-original-tvg-name=\"{cfg.OriginalTvgName}\" data-original-tvg-logo=\"{cfg.OriginalTvgLogo}\" data-override-group-title=\"{cfg.OverrideGroupTitle}\" data-override-tvg-name=\"{cfg.OverrideTvgName}\" data-override-tvg-logo=\"{cfg.OverrideTvgLogo}\" data-hidden=\"{cfg.Hidden}\" data-epg-channel-ids=\"{epgIdsJson}\" data-group-titles=\"{groupTitlesJson}\"");
-        }));
-
-        return string.Format(selectedGroupHtml, groupName, channelHtmlContent);
-    }));
-    */
-    var selectedChannelsHtml = string.Join("", selectedChannels.Select(c => string.Format(channelHtml, c.Id, c.Name, c.LogoUri, c.Uri, string.Join(", ", c.Groups), HtmlEncoder.Default.Encode(JsonSerializer.Serialize(c.EpgChannelIds)))));
 
     // Serialize rules
     //var rulesDict = config.RecategorizationRules.ToDictionary(r => r.MatchTvgId, r => new { r.NewGroupTitle, r.NewTvgName, r.NewTvgLogo, r.Hidden });
     //var rulesJson = System.Text.Json.JsonSerializer.Serialize(rulesDict);
-    var rulesJson = "{}"; // Placeholder since rules are currently disabled
+    //var rulesJson = "{}"; // Placeholder since rules are currently disabled
 
     // Buiild final HTML
     templatePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "index.html");
     string html = File.ReadAllText(templatePath);
     var styleHash = Utility.ComputeFileHash(Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "styles.css"));
     var scriptHash = Utility.ComputeFileHash(Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "scripts.js"));
-    html = string.Format(html, styleHash, scriptHash, config.M3uUrl, urlListHtml, availableChannelsHtml, selectedChannelsHtml, rulesJson);
+    html = string.Format(html, styleHash, scriptHash, config.M3uUrl, urlListHtml, availableChannelsHtml, selectedChannelsHtml);
 
     res.ContentType = "text/html; charset=utf-8";
     await res.WriteAsync(html);
@@ -181,7 +129,7 @@ app.MapPost("/config", async (HttpRequest req, ConfigStore configStore, RefreshW
         {
             // Generate a unique ID for this source
             var epgUrl = epgUrls[i];
-            epgUrl.Id ??= $"user_{DateTime.UtcNow.Ticks}_{i}";
+            epgUrl.Id = string.IsNullOrEmpty(epgUrl.Id) ? $"user_{DateTime.UtcNow.Ticks}_{i}" : epgUrl.Id;
             if (config.EpgUrls.Any(eu => eu.Id == epgUrl.Id))
             {
                 var target = config.EpgUrls.First(eu => eu.Id == epgUrl.Id);
@@ -305,6 +253,24 @@ app.MapGet("/output/m3u", (OutputStore store, Processor processor) =>
         Encoding.UTF8.GetBytes(content),
         "audio/x-mpegurl",
         "myguide.m3u"
+    );
+});
+
+app.MapGet("/output/epg", (OutputStore store, Processor processor) =>
+{
+    var content = store.Epg;
+    if (content == null)
+    {
+        processor.GenerateOutputs();
+        content = store.Epg;
+        if (content == null)
+            return Results.NotFound("Unable to load or generate content.");
+    }
+
+    return Results.File(
+        Encoding.UTF8.GetBytes(content),
+        "application/xml",
+        "epg.xml"
     );
 });
 
