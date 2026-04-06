@@ -21,7 +21,12 @@ public class EpgProgramme
 	{
 		return
 			(StartTime == target.StartTime && EndTime == target.EndTime)
-			|| StartTime.IsWithin(target.StartTime, target.EndTime)
-			|| EndTime.IsWithin(target.StartTime, target.EndTime);
+			|| StartTime.IsBetween(target.StartTime, target.EndTime)
+			|| EndTime.IsBetween(target.StartTime, target.EndTime);
+	}
+
+	public override string ToString()
+	{
+		return $"{Title} : {StartTime:t} - {EndTime:t}";
 	}
 }

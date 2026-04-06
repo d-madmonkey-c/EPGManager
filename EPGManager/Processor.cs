@@ -1,5 +1,10 @@
 using System;
+using System.Data;
 using System.IO.Compression;
+using System.Text;
+using System.Text.Encodings.Web;
+using System.Text.Json;
+using System.Xml;
 using System.Xml.Linq;
 using EPGManager.Data;
 
@@ -12,6 +17,8 @@ public class Processor
 	private readonly OutputStore _outputStore;
 	private readonly CacheStore _cacheStore;
 	private readonly HttpClient _httpClient = new();
+
+	public DateTime LastRefresh = DateTime.UnixEpoch;
 
 	public Processor(ILogger<Processor> logger, ConfigStore configStore, OutputStore outputStore, CacheStore cacheStore)
 	{
@@ -28,9 +35,7 @@ public class Processor
 	{
 		try
 		{
-			//_configStore.LoadAll();
 			var config = _configStore.SourceConfig;
-			//var config = await _configStore.LoadAsync();
 
 			if (string.IsNullOrWhiteSpace(config.M3uUrl))
 			{
@@ -42,57 +47,24 @@ public class Processor
 
 			// Download and cache M3U content
 			var m3uText = await DownloadText(config.M3uUrl, ct);
-			//_cacheStore.SaveM3uCacheAsync(m3uText);
 
 			// Parse channels
 			var channels = M3uParser.Parse(m3uText);
 			_cacheStore.Channels = channels;
 
-			/*
-			// Update secondary source info for these channels
-			var secondarySources = new List<EpgSource>();
-
-			if (secondarySources.Any())
+			// Update Urls for Selected Channels
+			foreach (SelectedChannel selected in _configStore.SelectedChannels)
 			{
-				var secondaryDocs = new List<XDocument>();
-				foreach (var source in secondarySources)
-				{
-					var cachedDoc = await _cacheStore.LoadEpgCacheAsync(source.Name);
-					secondaryDocs.Add(cachedDoc ?? await DownloadAndParseGzipXml(source.Url, ct));
-				}
-				//ChannelMapper.AttachSecondaryIds(channels, secondaryDocs, secondarySources);
-
-				// Try to find EPG matches for selected channels
-				foreach (var selectedChannel in _configStore.SelectedChannels)
-				{
-					var m3uChannel = channels.FirstOrDefault(c => c.Id == selectedChannel.Id);
-					if (m3uChannel != null)
-					{
-						// Copy auto-detected IDs to selected channel config
-						// foreach (var kvp in m3uChannel.SecondaryChannelIds)
-						// {
-						// 	if (!selectedChannel.EpgChannelIds.ContainsKey(kvp.Key))
-						// 	{
-						// 		selectedChannel.EpgChannelIds[kvp.Key] = kvp.Value;
-						// 	}
-						// }
-					}
-				}
+				selected.Uri = channels.FirstOrDefault(c => c.Id == selected.Id)?.Uri ?? selected.Uri;
 			}
-			*/
+
+			// Identify missing channels
+			var missingIds = _configStore.SelectedChannels.Select(c => c.Id).Except(channels.Select(c => c.Id)).ToList();
+			_cacheStore.MissingChannelIds = missingIds;
 
 			// Identify new channels
 			var newIds = channels.Select(c => c.Id).Except(currentIds).ToList();
 			_cacheStore.NewChannelIds = newIds;
-
-			// Update output store
-			//_outputStore.AvailableChannels = channels;
-			//_cacheStore.Channels = channels;
-			//_outputStore.NewChannelIds = new HashSet<string>(newIds);
-
-			// Update config to track current channels
-			//config.PreviousCachedChannelIds = currentIds.ToList();
-			//await _configStore.SaveAsync(config);
 
 			_cacheStore.SaveAll();
 			_logger.LogInformation($"M3U refresh completed. Found {channels.Count} channels, {newIds.Count} new.");
@@ -113,95 +85,23 @@ public class Processor
 		{
 			var config = _configStore.SourceConfig;
 
-			// var secondarySources = new List<EpgSource>();
-			// secondarySources.AddRange(config.EpgUrls);
-
-			// var allChannelIds = new HashSet<string>();
-
 			foreach (EpgSource source in config.EpgUrls)
 			{
-				var doc = await DownloadAndParseGzipXml(source.Url, ct);
-				//await _cacheStore.SaveEpgCacheAsync(source.Id, doc);
-				var epgData = EpgParser.ParseEpgDoc(doc);
-				_cacheStore.EpgChannels[source.Id] = epgData.Channels;
-				_cacheStore.EpgProgrammes[source.Id] = epgData.Programmes;
-
-				/*
-				// Extract available channel IDs from this EPG
-				var channelIds = doc.Root?
-					.Elements("channel")
-					.Select(ch => (string?)ch.Attribute("id"))
-					.Where(id => !string.IsNullOrWhiteSpace(id))
-					.Cast<string>()
-					.ToList() ?? new List<string>();
-
-				foreach (var id in channelIds)
-					allChannelIds.Add(id);
-
-				// Try to find matches for selected channels in this EPG
-				var epgChannels = doc.Root?
-					.Elements("channel")
-					.Select(ch => new
-					{
-						Id = (string)ch.Attribute("id")!,
-						Name = (string)ch.Element("display-name")!
-					})
-					.ToList() ?? new();
-				*/
-
-				/*  Channel matching logic moved to ChannelMapper to be shared between EPG and M3U refreshes
-				foreach (var selectedChannel in _configStore.SelectedChannels)
+				try
 				{
-					if (source.Id != null && selectedChannel.EpgChannelIds.ContainsKey(source.Id))
-						continue; // Already has a mapping for this source by id
-
-					// Backward compatibility: if old key is stored by source name, migrate it
-					if (!string.IsNullOrEmpty(source.Name) && selectedChannel.EpgChannelIds.ContainsKey(source.Name))
-					{
-						selectedChannel.EpgChannelIds[source.Id ?? source.Name] = selectedChannel.EpgChannelIds[source.Name];
-						selectedChannel.EpgChannelIds.Remove(source.Name);
-						continue;
-					}
-
-					// Try to find a match by existing EPG ID from other sources
-					string? foundId = null;
-					foreach (var otherSourceId in selectedChannel.EpgChannelIds.Keys)
-					{
-						if (selectedChannel.EpgChannelIds.TryGetValue(otherSourceId, out var otherEpgId))
-						{
-							// Look for the same EPG ID in this source
-							if (epgChannels.Any(c => c.Id == otherEpgId))
-							{
-								foundId = otherEpgId;
-								break;
-							}
-						}
-					}
-
-					// If not found by ID, try by name matching
-					if (foundId == null)
-					{
-						var match = epgChannels.FirstOrDefault(c =>
-							string.Equals(c.Id, selectedChannel.Id, StringComparison.OrdinalIgnoreCase) ||
-							Normalize(c.Name) == Normalize(selectedChannel.Name));
-
-						if (match != null)
-						{
-							foundId = match.Id;
-						}
-					}
-
-					if (foundId != null)
-					{
-						selectedChannel.EpgChannelIds[source.Id ?? source.Name] = foundId;
-					}
+					var doc = await DownloadAndParseGzipXml(source.Url, ct);
+					//await _cacheStore.SaveEpgCacheAsync(source.Id, doc);
+					var epgData = EpgParser.ParseEpgDoc(doc, source.Offset);
+					_cacheStore.EpgChannels[source.Id] = epgData.Channels;
+					_cacheStore.EpgProgrammes[source.Id] = epgData.Programmes;
 				}
-				*/
+				catch (Exception ex)
+				{
+					_logger.LogError($"Failed processing EPG for {source.Name}.", ex);
+				}
 			}
 
 			// Update config with cached channel IDs
-			//config.CachedEpgChannelIds = allChannelIds.ToList();
-			//await _configStore.SaveAsync(config);
 			_cacheStore.SaveAll();
 
 			_logger.LogInformation($"EPG refresh completed. Found {_cacheStore.EpgChannels.Values.SelectMany(c => c).Distinct().Count()} available channel IDs across all sources.");
@@ -213,10 +113,34 @@ public class Processor
 		}
 	}
 
-	public void GenerateOutputs()
+	public async Task RefreshEpgAsync(string id, CancellationToken ct = default)
 	{
+		try
+		{
+			EpgSource source = _configStore.SourceConfig.EpgUrls.First(e => e.Id == id);
+			var doc = await DownloadAndParseGzipXml(source.Url, ct);
+			var epgData = EpgParser.ParseEpgDoc(doc, source.Offset);
+			_cacheStore.EpgChannels[source.Id] = epgData.Channels;
+			_cacheStore.EpgProgrammes[source.Id] = epgData.Programmes;
+			_cacheStore.SaveAll();
+		}
+		catch (Exception ex)
+		{
+			_logger.LogError(ex, "Failed processing EPG for {id}.", id);
+			throw;
+		}
+	}
+
+	public async Task GenerateOutputs(CancellationToken ct = default)
+	{
+#pragma warning disable CA1873
+		_logger.LogInformation("Generating M3U..");
 		_outputStore.M3u = M3uBuilder.Build(_configStore.SelectedChannels);
-		_outputStore.Epg = EpgBuilder.Build(_configStore.SelectedChannels, _configStore.SourceConfig.EpgUrls, _cacheStore).ToString();
+		_logger.LogInformation("M3U Generated with {ChannelCount} channels.", _configStore.SelectedChannels.Count);
+		_logger.LogInformation("Generating EPG...");
+		_outputStore.Epg = EpgBuilder.Build(_configStore.SelectedChannels, _configStore.SourceConfig.EpgUrls, _cacheStore);
+		_logger.LogInformation("Genereated EPG with {ProgrammeCount} programmes.", _outputStore.Epg.Root?.Elements("programme").Count() ?? 0);
+#pragma warning restore CA1873
 	}
 
 	private async Task<string> DownloadText(string url, CancellationToken ct)
@@ -244,5 +168,115 @@ public class Processor
 			using var gzip = new GZipStream(fileStream, CompressionMode.Decompress);
 			return XDocument.Load(gzip);
 		}
+	}
+
+	internal string GenerateSourceConfigContent()
+	{
+		string templatePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "epgurl.partial.html");
+		string templateHtml = File.ReadAllText(templatePath);
+		var urlListHtml = string.Join("", _configStore.SourceConfig.EpgUrls
+			.OrderBy(eu => eu.Priority)
+			.ThenBy(eu => eu.Name)
+			.Select(eu => string.Format(templateHtml, eu.Id, eu.Priority, eu.Offset, eu.Name, eu.Url)));
+
+		templatePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "sourceconfig.partial.html");
+		templateHtml = File.ReadAllText(templatePath);
+		var sourceConfigHtml = string.Format(templateHtml, _configStore.SourceConfig.M3uUrl, urlListHtml);
+
+		return sourceConfigHtml;
+	}
+
+	internal string GenerateChannelConfigContent()
+	{
+		var channels = _cacheStore.Channels;
+		var newChannelIds = _cacheStore.NewChannelIds ?? [];
+		var missingChannelIds = _cacheStore.MissingChannelIds ?? [];
+		var selectedChannels = _configStore.SelectedChannels;
+
+		var grouped = channels
+			.GroupBy(c => c.Group ?? "Ungrouped")
+			.OrderBy(g => g.Key)
+			.ToList();
+		string templatePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "availablegroup.partial.html");
+		string groupHtml = File.ReadAllText(templatePath);
+		templatePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "availablechannel.partial.html");
+		string channelHtml = File.ReadAllText(templatePath);
+		var availableChannelsHtml = string.Join("", grouped.Select(g => string.Format(groupHtml, g.Key, string.Join("", g.Select(c =>
+		{
+			var channelItemHtml = string.Format(channelHtml, c.Id, c.Name, c.Group ?? "", c.LogoUri ?? "", c.Uri);
+			if (newChannelIds.Contains(c.Id))
+			{
+				// Add new-channel class to the channel-item div
+				channelItemHtml = channelItemHtml.Replace("class='channel-item'", "class='channel-item new-channel'");
+			}
+			else if (missingChannelIds.Contains(c.Id))
+			{
+				// Add new-channel class to the channel-item div
+				channelItemHtml = channelItemHtml.Replace("class='channel-item'", "class='channel-item missing-channel'");
+			}
+			return channelItemHtml;
+		})))));
+
+		templatePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "selectedchannel.partial.html");
+		string templateHtml = File.ReadAllText(templatePath);
+
+		var selectedChannelsHtml = string.Join("", selectedChannels.Select(c => string.Format(
+			templateHtml,
+			c.Id,
+			c.Name,
+			c.LogoUri,
+			c.Uri,
+			string.Join(", ", c.Groups),
+			HtmlEncoder.Default.Encode(JsonSerializer.Serialize(c.EpgChannelIds.OrderBy(eci => _configStore.SourceConfig.EpgUrls.First(eu => eu.Id == eci.SourceId).Priority).Select(eci => new
+			{
+				SourceId = eci.SourceId,
+				SourceName = _configStore.SourceConfig.EpgUrls.First(eu => eu.Id == eci.SourceId).Name,
+				EpgId = eci.EpgId
+			}
+		))))));
+
+		templatePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "channelconfig.partial.html");
+		templateHtml = File.ReadAllText(templatePath);
+		var channelConfigHtml = string.Format(templateHtml, availableChannelsHtml, selectedChannelsHtml);
+
+		return channelConfigHtml;
+	}
+
+	internal string GeneratePreviewContent()
+	{
+		DateTime startTime = DateTime.Today.AddHours(DateTime.Now.Hour);
+		DateTime t1 = startTime;
+		DateTime t2 = t1.AddMinutes(30);
+		DateTime t3 = t2.AddMinutes(30);
+		DateTime t4 = t3.AddMinutes(30);
+		DateTime t5 = t4.AddMinutes(30);
+		var allProgrammes = EpgParser.ParseEpgDoc(_outputStore.Epg ?? new XDocument(), 0.0).Programmes;
+		var programmesHtml = new StringBuilder();
+		EpgProgrammeList programmes;
+		foreach (SelectedChannel channel in _configStore.SelectedChannels)
+		{
+			programmesHtml.Append($"<tr><td class=\"preview-channel-column\"><img src=\"{channel.LogoUri}\" />{channel.Name}</td>");
+			programmes = new EpgProgrammeList(allProgrammes.Where(p => p.ChannelId == channel.Id && (p.StartTime.IsWithin(t1, t5) || p.EndTime.IsWithin(t1, t5))).OrderBy(p => p.StartTime));
+			for (int slot = 0; slot < 5; slot++)
+			{
+				try
+				{
+					int slots = (int)Math.Ceiling((programmes[slot].EndTime - (programmes[slot].StartTime < t1 ? t1 : programmes[slot].StartTime)).TotalMinutes / 30.0);
+					slots = slots > (5 - slot) ? (5 - slot) : slots < 1 ? 1 : slots;
+					programmesHtml.Append($"<td class=\"preview-timeslot-column\" colspan=\"{slots}\">{programmes[slot].Title}<br />{programmes[slot].StartTime:t} - {programmes[slot].EndTime:t}</td>");
+					slot += slots - 1;
+				}
+				catch
+				{
+					programmesHtml.Append($"<td class=\"preview-timeslot-column\" colspan=\"{5 - slot}\">No Info</td>");
+					slot = 5;
+				}
+			}
+			programmesHtml.AppendLine("</tr>");
+		}
+		string templatePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "previewtab.partial.html");
+		string previewHtml = File.ReadAllText(templatePath);
+		previewHtml = string.Format(previewHtml, t1, t2, t3, t4, t5, programmesHtml.ToString());
+		return previewHtml;
 	}
 }

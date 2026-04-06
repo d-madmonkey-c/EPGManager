@@ -8,5 +8,5 @@ public class EpgSource
 	public string Name { get; set; } = string.Empty; // Display name for this source
 	public string Url { get; set; } = string.Empty;
 	public int Priority { get; set; } // Lower number = higher priority
-
+	public double Offset { get; set; } = 0.0;
 }

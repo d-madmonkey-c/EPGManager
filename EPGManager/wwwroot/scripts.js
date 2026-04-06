@@ -62,9 +62,6 @@ function addChannel(id, name) {
 }
 
 function removeChannel(channelElement) {
-	// const list = document.getElementById('selected-list');
-	// const item = [...list.children].find(div => div.querySelector('.channel-gripper').dataset.id === tvgId);
-	//list.removeChild(channelElement);
 	channelElement.remove();
 }
 
@@ -81,6 +78,7 @@ function showSettings(channelNameElement) {
 	var sourceGroup = sourceChannel.dataset.group;
 
 	var contentElement = document.getElementById('settings-content');
+	contentElement.querySelector("h3").textContent = name;
 	contentElement.querySelector('#settings-default-name').textContent = sourceName;
 	contentElement.querySelector('#settings-default-logo').textContent = sourceLogo;
 	contentElement.querySelector('#settings-default-group').textContent = sourceGroup;
@@ -93,30 +91,6 @@ function showSettings(channelNameElement) {
 	document.getElementById('settings-placeholder').style.display = 'none';
 	contentElement.style.display = 'block';
 }
-
-/*
-function getSelectedChannel(tvgId) {
-	const selectedItems = document.querySelectorAll('#selected-list .channel-item');
-	for (let item of selectedItems) {
-		if (item.dataset.id === tvgId) {
-			const groupTitles = item.dataset.groupTitles ? JSON.parse(item.dataset.groupTitles) : [];
-			return {
-				m3uTvgId: item.dataset.id,
-				originalName: item.dataset.originalName || '',
-				originalGroupTitle: item.dataset.originalGroupTitle || null,
-				originalTvgName: item.dataset.originalTvgName || null,
-				originalTvgLogo: item.dataset.originalTvgLogo || null,
-				groupTitles: groupTitles,
-				overrideTvgName: item.dataset.overrideTvgName || null,
-				overrideTvgLogo: item.dataset.overrideTvgLogo || null,
-				hidden: item.dataset.hidden === 'true',
-				epgChannelIds: item.dataset.epgChannelIds ? JSON.parse(item.dataset.epgChannelIds) : {}
-			};
-		}
-	}
-	return null;
-}
-*/
 
 function renderEpgMappings(epgIds) {
 	/*
@@ -145,6 +119,8 @@ function renderEpgMappings(epgIds) {
 }
 
 function addEpgMapping(channelNameElement) {
+	document.getElementById('modal-channel-name').textContent = channelNameElement.dataset.name;
+	document.getElementById('modal-channel-id').textContent = channelNameElement.dataset.id;
 	document.getElementById('modal-add').onclick = () => addSelectedEpgMapping(channelNameElement);
 	loadEpgSources();
 	document.getElementById('epg-mapping-modal').style.display = 'block';
@@ -152,6 +128,8 @@ function addEpgMapping(channelNameElement) {
 
 function closeEpgMappingModal() {
 	document.getElementById('epg-mapping-modal').style.display = 'none';
+	document.getElementById('modal-channel-name').textContent = "Channel Name";
+	document.getElementById('modal-channel-id').textContent = "Channel Id";
 	document.getElementById('epg-source-select').value = '';
 	document.getElementById('epg-channel-select').innerHTML = '<option value="">Select EPG source first...</option>';
 }
@@ -159,7 +137,7 @@ function closeEpgMappingModal() {
 async function loadEpgSources() {
 	const select = document.getElementById('epg-source-select');
 
-	await fetch('/api/list-epgSources')
+	await fetch('/epg/list-epgSources')
 		.then(response => {
 			if (!response.ok) {
 				throw new Error(`${response.status} (${response.statusText}) : ${response.text()}`);
@@ -188,7 +166,7 @@ function loadEpgChannels() {
 		return;
 	}
 
-	fetch(`/api/list-epgChannels/${sourceId}`)
+	fetch(`/epg/list-epgChannels/${sourceId}`)
 		.then(response => {
 			if (!response.ok) {
 				throw new Error(`${response.status} (${response.statusText}) : ${response.text()}`);
@@ -234,7 +212,7 @@ function addSelectedEpgMapping(channelNameElement) {
 	newEntry.textContent = `${sourceName}: ${channelId}`;
 	epgListElement.appendChild(newEntry);
 
-	alert(`Mapped to EPG source ${sourceId} channel ${channelId}`);
+	//alert(`Mapped to EPG source ${sourceId} channel ${channelId}`);
 	//showSettings(channelNameElement); // Refresh the UI
 }
 
@@ -269,13 +247,14 @@ function applySettings(tvgId) {
 	}
 }
 
-function addUrlRow(name = '', url = '', priority = '') {
+function addUrlRow(name = '', url = '', priority = '', offset = '') {
 	const tbody = document.getElementById('url-list');
 	const row = document.createElement('tr');
 	row.classList.add('changed');
 	row.dataset.id = '';
 	row.innerHTML = `
         <td class="column-priority"><input style="width:100%" type="number" name="priority" value="${priority}" min="1" required></td>
+        <td class="column-offset"><input style="width:100%" type="number" name="offset" value="${offset}" required></td>
         <td class="column-name"><input style="width:100%" type="text" name="name" value="${name}" placeholder="EPG Source Name" required></td>
         <td class="column-url"><input style="width:100%" type="url" name="url" value="${url}" required></td>
         <td class="column-actions"><div class="icon-trash" style="float: left" onclick='removeUrlRow(this)'>
@@ -293,14 +272,14 @@ function removeUrlRow(button) {
 	button.closest('tr').remove();
 }
 
-function beforeSubmit() {
+async function saveConfig() {
 	const epgUrls = [...document.getElementById('url-list').querySelectorAll("tr")].map(r => ({
 		Id: r.dataset.id,
 		Priority: Number(r.querySelector('[name="priority"]').value),
+		Offset: Number(r.querySelector('[name="offset"]').value),
 		Name: r.querySelector('[name="name"]').value,
 		Url: r.querySelector('[name="url"]').value
 	}));
-	document.getElementById('epgurls-input').value = JSON.stringify(epgUrls);
 
 	const selectedChannels = [...document.querySelectorAll('#selected-list .channel-name')].map(c => ({
 		Id: c.dataset.id,
@@ -314,19 +293,55 @@ function beforeSubmit() {
 			EpgId: cm.EpgId
 		}))
 	}));
-	document.getElementById('selected-channels-input').value = JSON.stringify(selectedChannels);
+
+	const payload = {
+		PrimaryUrl: document.querySelector("input[name='PrimaryUrl']").value,
+		EpgUrls: epgUrls,
+		SelectedChannels: selectedChannels
+	};
+
+	fetch("/config", {
+		method: "POST",
+		headers: {
+			"Content-Type": "application/json"
+		},
+		body: JSON.stringify(payload)
+		})
+		.then(response => {
+			if (response.ok) {
+				alert("Configuration saved");
+			} else {
+				alert("Error saving config");
+			}
+			refreshSourcesTab();
+		})
+		.catch(error => alert('Error saving config: ' + error.message));
 }
 
-function triggerRefresh() {
+function refreshOutputs() {
+	document.getElementById('outputactions').style.display = 'none';
+	document.getElementById('progress').style.display = 'block';
 	fetch('/refresh', { method: 'POST' })
 		.then(response => {
 			if (response.ok) {
-				return response.text();
+				return response.json();
 			} else {
 				throw new Error('Refresh failed');
 			}
 		})
-		.then(data => alert(data))
+		.then(data => {
+			if (data.success) {
+				alert(`Processed ${data.totalChannelCount} total channels.\n${data.newChannelCount} were new, ${data.selectedChannelCount} were selected.\n${data.totalEpgProgrammes} programmes for ${data.totalEpgChannels} across ${data.totalSources} sources were processed.`);
+				document.getElementById('progress').style.display = 'none';
+				document.getElementById('outputactions').style.display = 'block';
+				// Reload the page to show updated channels
+				//window.location.reload();
+				refreshChannelsTab();
+				refreshPreviewTab();
+			} else {
+				alert('Error: ' + data.error);
+			}
+		})
 		.catch(error => alert('Error triggering refresh: ' + error.message));
 }
 
@@ -341,12 +356,26 @@ function refreshM3u() {
 			if (data.success) {
 				alert(data.message);
 				// Reload the page to show updated channels
-				window.location.reload();
+				//window.location.reload();
+				refreshChannelsTab();
 			} else {
 				alert('Error: ' + data.error);
 			}
 		})
 		.catch(error => alert('Error refreshing M3U: ' + error.message));
+}
+
+function refreshEpg(id) {
+	fetch(`/refresh/epg/${id}`, { method: 'POST' })
+		.then(response => response.json())
+		.then(data => {
+			if (data.success) {
+				alert(data.message);
+			} else {
+				alert('Error: ' + data.error);
+			}
+		})
+		.catch(error => alert('Error refreshing EPG: ' + error.message));
 }
 
 function refreshAllEpg() {
@@ -366,15 +395,50 @@ function refreshAllEpg() {
 		.catch(error => alert('Error refreshing EPG: ' + error.message));
 }
 
-/*
-function loadRules() {
-	if (!rules) {
-		rulesString = document.getElementById('rules-json-input').value;
-		rules = JSON.parse(rulesString);
-		document.getElementById('rules-json-input').value = '';
-	}
+function refreshSourcesTab() {
+	fetch('/sourceConfigContent', { method: 'GET' })
+		.then(response => {
+			if (response.ok) {
+				return response.text();
+			} else {
+				throw new Error('Refresh failed');
+			}
+		})
+		.then(data => {
+			document.getElementById("tab-content-sources").innerHTML = data;
+		})
+		.catch(error => alert('Error refreshing Sources: ' + error.message));
 }
-*/
+
+function refreshChannelsTab() {
+	fetch('/channelConfigContent', { method: 'GET' })
+		.then(response => {
+			if (response.ok) {
+				return response.text();
+			} else {
+				throw new Error('Refresh failed');
+			}
+		})
+		.then(data => {
+			document.getElementById("tab-content-channels").innerHTML = data;
+		})
+		.catch(error => alert('Error refreshing Channels: ' + error.message));
+}
+
+function refreshPreviewTab() {
+	fetch('/previewContent', { method: 'GET' })
+		.then(response => {
+			if (response.ok) {
+				return response.text();
+			} else {
+				throw new Error('Refresh failed');
+			}
+		})
+		.then(data => {
+			document.getElementById("tab-content-preview").innerHTML = data;
+		})
+		.catch(error => alert('Error refreshing Preview: ' + error.message));
+}
 
 // --- DRAG AND DROP FOR SELECTED CHANNELS ---
 

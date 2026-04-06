@@ -1,0 +1,45 @@
+<div class="channels-layout">
+	<div class='panel' id='all-channels'>
+		<h2>Available Channels</h2>
+		<div class="panel-body">
+			{0}
+		</div>
+	</div>
+	<div class="panel" id="selected-channels">
+		<h2>Selected Channels</h2>
+		<div id='selected-list'>
+			{1}
+		</div>
+	</div>
+	<div class='panel' id='channel-settings'>
+		<h2>Channel Settings</h2>
+		<div id='settings-placeholder' style="display: block;">
+			<p>Select a channel to edit settings.</p>
+		</div>
+		<div id='settings-content' style="display: none;">
+			<h3>Channel Name</h3>
+			<div style="margin-bottom: 20px;">
+				<h4>Default Values</h4>
+				<div style="display: inline-block;">Name:</div>
+				<div id='settings-default-name' style="display: inline-block;"></div><br />
+				<div style="display: inline-block;">Logo:</div>
+				<div id='settings-default-logo' style="display: inline-block;"></div><br />
+				<div style="display: inline-block;">Group:</div>
+				<div id='settings-default-group' style="display: inline-block;"></div><br />
+			</div>
+
+			<h4>Overrides</h4>
+			<label>Name:</label><input id='settings-name' type='text' /><br />
+			<label>Logo:</label><input id='settings-logo' type='text' /><br />
+			<label>Groups:</label><input id='settings-groups' type="text"><br />
+
+			<h4>EPG Mappings</h4>
+			<div id="epg-mappings">
+				<p>No EPG mappings</p>
+			</div>
+			<button id="settings-addepg" type="button">Add EPG Mapping</button><br /><br />
+
+			<button id="settings-apply" type='button'>Apply Settings</button>
+		</div>
+	</div>
+</div>

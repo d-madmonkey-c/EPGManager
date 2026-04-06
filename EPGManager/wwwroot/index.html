@@ -7,98 +7,61 @@
 
 <body>
 	<h1>EPG Manager</h1>
-	<button type="button" onclick="triggerRefresh()">Refresh Data</button>
-	<form method='post' action='/config' onsubmit='beforeSubmit()'>
-		<h2>Source URLs</h2>
-		<label>Primary M3U URL:</label><br />
-		<div style='display: flex; gap: 8px; margin-bottom: 12px;'>
-			<input type="text" name="PrimaryUrl" value="{2}" size="80" />
-			<button type="button" onclick="refreshM3u()" title="Download and cache M3U file">↻ Refresh M3U</button>
-		</div>
+	<div id="outputactions" style="width: 300px; height: 50px;">
+		<button type="button" onclick="refreshOutputs()">Refresh All</button>&nbsp;&nbsp;<a href="/output/m3u">M3U Output</a>&nbsp;&nbsp;<a href="/output/epg">EPG Output</a><br />
+		<div id="status-message">{2}</div>
+	</div>
+	<div id="progress" class="progress" style="display: none">
+		<svg class="spinner" style="width: 300px; height: 50px;">
+			<circle class="ringbg" cx="150" cy="25" r="20" />
+			<circle class="ring" cx="150" cy="25" r="20" />
+		</svg>
+	</div>
+	<br />
 
-		<h3>EPG Source URLs (Prioritized)</h3>
-		<table id="url-table">
-			<thead>
-				<tr>
-					<th class="column-priority">Priority</th>
-					<th class="column-name">Name</th>
-					<th class="column-url">URL</th>
-					<th class="column-actions">Actions</th>
-				</tr>
-			</thead>
-			<tbody id="url-list">
-				{3}
-			</tbody>
-		</table>
-		<button type="button" onclick="addUrlRow()">Add URL</button><br/>
-		<button type="button" onclick="refreshAllEpg()" title="Download and cache all EPG files">↻ Refresh All EPG</button><br/><br/>
-		<input type='hidden' name='EpgUrls' id='epgurls-input' />
+	<div class="tab-header">
+		<label class="tab-label" for="tab-sources">Sources <button type="button" class="refresh-button" onclick="refreshSourcesTab()">↻</button></label>
+		<label class="tab-label" for="tab-channels">Channels <button type="button" class="refresh-button" onclick="refreshChannelsTab()">↻</button></label>
+		<label class="tab-label" for="tab-preview">Preview <button type="button" class="refresh-button" onclick="refreshPreviewTab()">↻</button></label>
+	</div>
 
-		<div class='panel' id='all-channels'>
-			<h2>Available Channels</h2>
-			<div class="panel-body">
-			{4}
-			</div>
-		</div>
-		<div class="panel" id="selected-channels">
-			<h2>Selected Channels</h2>
-			<div id='selected-list'>
-			{5}
-			</div>
-		</div>
-		<div class='panel' id='channel-settings'>
-			<h2>Channel Settings</h2>
-			<div id='settings-placeholder' style="display: block;">
-				<p>Select a channel to edit settings.</p>
-			</div>
-			<div id='settings-content' style="display: none;">
-				<h3>Channel ID</h3>
-				<div style="margin-bottom: 20px;">
-					<h4>Default Values</h4>
-					<div style="display: inline-block;">Name:</div><div id='settings-default-name' style="display: inline-block;"></div><br />
-					<div style="display: inline-block;">Logo:</div><div id='settings-default-logo' style="display: inline-block;"></div><br />
-					<div style="display: inline-block;">Group:</div><div id='settings-default-group' style="display: inline-block;"></div><br />
-				</div>
+	<input type="radio" id="tab-sources" name="tab" class="tab" checked>
+	<div id="tab-content-sources" class="tab-content">
+		{3}
+	</div>
 
-				<h4>Overrides</h4>
-				<label>Name:</label><input id='settings-name' type='text' /><br />
-				<label>Logo:</label><input id='settings-logo' type='text' /><br />
-				<label>Groups:</label><input id='settings-groups' type="text"><br />
+	<input type="radio" id="tab-channels" name="tab" class="tab">
+	<div id="tab-content-channels" class="tab-content">
+		{4}
+	</div>
 
-				<h4>EPG Mappings</h4>
-				<div id="epg-mappings">
-					<p>No EPG mappings</p>
-				</div>
-				<button id="settings-addepg" type="button">Add EPG Mapping</button><br /><br />
+	<input type="radio" id="tab-preview" name="tab" class="tab">
+	<div id="tab-content-preview" class="tab-content">
+		{5}
+	</div>
+	<div style='clear: both;'></div>
 
-				<button id="settings-apply" type='button'>Apply Settings</button>
-			</div>
-		</div>
-
-		<div style='clear: both;'></div>
-
-		<input type='hidden' name='SelectedChannels' id='selected-channels-input' />
-
-		<br />
-		<button type='submit'>Save</button>
-	</form>
+	<br />
+	<button type="button" onclick="saveConfig()">Save</button>
 
 	<!-- EPG Mapping Modal -->
 	<div id="epg-mapping-modal" class="modal" style="display: none;">
 		<div class="modal-content">
 			<span class="close" onclick="closeEpgMappingModal()">&times;</span>
 			<h2>Add EPG Mapping</h2>
+			<div id="modal-channel-name" style="display: inline;">Channel Name</div> : <div id="modal-channel-id"
+				style="display: inline;">Channel Id</div><br />
 			<p>Select an EPG source and channel to map to this M3U channel.</p>
-			<label for="epg-source-select">EPG Source:</label>
-			<select id="epg-source-select" onchange="loadEpgChannels()">
+			<label for="epg-source-select" style="display: inline-block; width: 110px;">EPG Source:</label>
+			<select id="epg-source-select" style="width: 475px; max-width: 475px;" onchange="loadEpgChannels()">
 				<option value="">Select EPG source...</option>
-			</select><br/><br/>
-			<label for="epg-channel-select">EPG Channel:</label>
-			<select id="epg-channel-select">
+			</select><br /><br />
+			<label for="epg-channel-select" style="display: inline-block; width: 110px;">EPG Channel:</label>
+			<select id="epg-channel-select" style="width: 475px; max-width: 475px;">
 				<option value="">Select EPG source first...</option>
-			</select><br/><br/>
+			</select><br /><br />
 			<button id="modal-add" type="button">Add Mapping</button>
-			<button type="button" onclick="closeEpgMappingModal()">Cancel</button>
+			<button type="button" onclick="closeEpgMappingModal()">Close</button>
 		</div>
 	</div>
 </body>

@@ -1,0 +1,16 @@
+[Unit]
+Description=EPG Manager Service
+After=network.target
+
+[Service]
+WorkingDirectory=/opt/epgmanager
+ExecStart=/usr/share/dotnet/dotnet /opt/epgmanager/EPGManager.dll
+Restart=always
+RestartSec=10
+KillSignal=SIGINT
+SyslogIdentifier=epgmanager
+Environment=DOTNET_ROOT=/usr/share/dotnet
+Environment=PATH=/usr/share/dotnet:/usr/bin:/bin
+
+[Install]
+WantedBy=multi-user.target

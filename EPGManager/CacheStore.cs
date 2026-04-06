@@ -10,6 +10,7 @@ public class CacheStore
 
 	public ChannelList Channels { get; set; } = new ChannelList();
 	public List<string> NewChannelIds { get; set; } = new List<string>();
+	public List<string> MissingChannelIds { get; set; } = new List<string>();
 	public Dictionary<string, EpgChannelList> EpgChannels { get; set; } = new Dictionary<string, EpgChannelList>();
 	public Dictionary<string, EpgProgrammeList> EpgProgrammes { get; set; } = new Dictionary<string, EpgProgrammeList>();
 
@@ -22,6 +23,7 @@ public class CacheStore
 	{
 		Channels = Utility.LoadJson<ChannelList>(Path.Combine(_cacheDir, "channels.json")) ?? new ChannelList();
 		NewChannelIds = Utility.LoadJson<List<string>>(Path.Combine(_cacheDir, "new_channels.json")) ?? new List<string>();
+		MissingChannelIds = Utility.LoadJson<List<string>>(Path.Combine(_cacheDir, "missing_channels.json")) ?? new List<string>();
 		foreach (var epgId in epgIds)
 		{
 			var epgChannels = Utility.LoadJson<EpgChannelList>(Path.Combine(_cacheDir, $"epg_{epgId}_channels.json")) ?? new EpgChannelList();
@@ -36,6 +38,7 @@ public class CacheStore
 	{
 		Utility.SaveJson(Path.Combine(_cacheDir, "channels.json"), Channels);
 		Utility.SaveJson(Path.Combine(_cacheDir, "new_channels.json"), NewChannelIds);
+		Utility.SaveJson(Path.Combine(_cacheDir, "missing_channels.json"), MissingChannelIds);
 		foreach (var kvp in EpgChannels)
 		{
 			var epgId = kvp.Key;
@@ -72,6 +75,7 @@ public class CacheStore
 		return await File.ReadAllTextAsync(path);
 	}
 
+/*
 	/// <summary>
 	/// Saves EPG XML content to cache for a specific source
 	/// </summary>
@@ -100,7 +104,7 @@ public class CacheStore
 			return XDocument.Load(gzip);
 		}
 	}
-
+*/
 	/// <summary>
 	/// Clears all cache files
 	/// </summary>

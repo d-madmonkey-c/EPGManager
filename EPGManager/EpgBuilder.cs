@@ -14,16 +14,16 @@ public static class EpgBuilder
 		EpgProgrammeList selectedProgrammes = new EpgProgrammeList();
 
 		var root = new XElement("tv");
-		root.SetAttributeValue("date", DateTime.Now.ToString(PROGRAMME_TIME_FORMAT));
+		//root.SetAttributeValue("date", DateTime.Now.ToString(PROGRAMME_TIME_FORMAT));
 		root.SetAttributeValue("generator-info-name", "EPG Manager");
-		root.SetAttributeValue("generator-info-url", ""); // TODO : Host Url, same goes for logos.
+		root.SetAttributeValue("generator-info-url", "http://192.168.10.101:5000"); // TODO : Host Url, same goes for logos.
 
 		// List the channels
 		XElement channelElement, displayNameElement, iconElement;
 		foreach (SelectedChannel channel in channels)
 		{
 			channelElement = new XElement("channel");
-			channelElement.SetAttributeValue("Id", channel.Id);
+			channelElement.SetAttributeValue("id", channel.Id);
 			displayNameElement = new XElement("display-name");
 			displayNameElement.SetAttributeValue("lang", "en");
 			displayNameElement.Value = channel.Name;
@@ -39,9 +39,6 @@ public static class EpgBuilder
 		{
 			var mappings = channelMappings[source.Id];
 			var programmes = cacheStore.EpgProgrammes[source.Id].Where(p => mappings.ContainsKey(p.ChannelId));
-			/* Debug */
-			var test1 = cacheStore.EpgProgrammes[source.Id].Select(p => p.ChannelId).Distinct().ToList();
-			var test2 = programmes.Select(p => p.ChannelId).Distinct().ToList();
 			string channelId;
 			foreach (EpgProgramme programme in programmes)
 			{
@@ -51,8 +48,10 @@ public static class EpgBuilder
 					&& p.IsOverlapping(programme)
 				)) continue;
 				programmeElement = new XElement("programme");
-				programmeElement.SetAttributeValue("start", programme.StartTime.ToString(PROGRAMME_TIME_FORMAT));
-				programmeElement.SetAttributeValue("stop", programme.EndTime.ToString(PROGRAMME_TIME_FORMAT));
+				//programmeElement.SetAttributeValue("start", programme.StartTime.ToString(PROGRAMME_TIME_FORMAT));
+				//programmeElement.SetAttributeValue("stop", programme.EndTime.ToString(PROGRAMME_TIME_FORMAT));
+				programmeElement.SetAttributeValue("start", programme.StartTime.ToUniversalTime().ToString("yyyyMMddHHmmss +0000"));
+				programmeElement.SetAttributeValue("stop", programme.EndTime.ToUniversalTime().ToString("yyyyMMddHHmmss +0000"));
 				programmeElement.SetAttributeValue("channel", channelId);
 				titleElement = new XElement("title");
 				titleElement.SetAttributeValue("lang", "en");

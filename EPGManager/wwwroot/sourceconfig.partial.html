@@ -1,0 +1,24 @@
+<h2>Source URLs</h2>
+<label>Primary M3U URL:</label><br />
+<div style='display: flex; gap: 8px; margin-bottom: 12px;'>
+	<input type="text" name="PrimaryUrl" value="{0}" size="80" />
+	<button type="button" onclick="refreshM3u()" title="Download and cache M3U file">↻ Refresh M3U</button>
+</div>
+
+<h3>EPG Source URLs (Prioritized)</h3>
+<table id="url-table">
+	<thead>
+		<tr>
+			<th class="column-priority">Priority</th>
+			<th class="column-offset">Offset</th>
+			<th class="column-name">Name</th>
+			<th class="column-url">URL</th>
+			<th class="column-actions">Actions</th>
+		</tr>
+	</thead>
+	<tbody id="url-list">
+		{1}
+	</tbody>
+</table>
+<button type="button" onclick="addUrlRow()">Add URL</button><br />
+<button type="button" onclick="refreshAllEpg()" title="Download and cache all EPG files">↻ Refresh All EPG</button><br /><br />

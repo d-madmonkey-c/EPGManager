@@ -7,8 +7,9 @@ namespace EPGManager;
 public class EpgParser
 {
 	private const string PROGRAMME_TIME_FORMAT = "yyyyMMddHHmmss zzz";
+	private static readonly DateTime _cutoffDate = DateTime.Today.AddDays(-2);
 
-	public static (EpgChannelList Channels, EpgProgrammeList Programmes) ParseEpgDoc(XDocument doc)
+	public static (EpgChannelList Channels, EpgProgrammeList Programmes) ParseEpgDoc(XDocument doc, double offset)
 	{
 		EpgChannelList channels = new EpgChannelList(doc.Root?
 			.Elements("channel")
@@ -27,9 +28,10 @@ public class EpgParser
 				ChannelId = (string)pr.Attribute("channel")!,
 				Title = (string)pr.Element("title")!,
 				Description = (string?)pr.Element("desc") ?? string.Empty,
-				StartTime = DateTime.ParseExact((string)pr.Attribute("start")!, PROGRAMME_TIME_FORMAT, null),
-				EndTime = DateTime.ParseExact((string)pr.Attribute("stop")!, PROGRAMME_TIME_FORMAT, null)
+				StartTime = DateTime.ParseExact((string)pr.Attribute("start")!, PROGRAMME_TIME_FORMAT, null).AddHours(offset),
+				EndTime = DateTime.ParseExact((string)pr.Attribute("stop")!, PROGRAMME_TIME_FORMAT, null).AddHours(offset)
 			})
+			.Where(pr => pr.StartTime >= _cutoffDate)
 			.ToList() ?? []);
 		/*
 		foreach (var selectedChannel in _configStore.SelectedChannels)

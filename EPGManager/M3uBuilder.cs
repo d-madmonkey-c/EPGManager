@@ -12,7 +12,7 @@ public static class M3uBuilder
 	{
 		var sb = new StringBuilder();
 
-		sb.AppendLine("#EXTM3U url-tvg=\"http://m3u4u.com/epg/jwmzn12xpqhkp8xky721\"");
+		sb.AppendLine("#EXTM3U url-tvg=\"http://192.168.10.101:5000/output/epg\"");
 
 		var groups = channels.Select(c => c.Groups[0]).Distinct();
 		foreach (string group in groups)

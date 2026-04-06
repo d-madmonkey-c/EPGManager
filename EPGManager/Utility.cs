@@ -8,25 +8,25 @@ internal static class Utility
 {
 
 	/// <summary>
-	/// Checks if the DateTime is between the provided start and end times (inclusive).
+	/// Checks if the DateTime is between the provided start and end times (exclusive).
 	/// </summary>
 	/// <param name="start"></param>
 	/// <param name="end"></param>
 	/// <returns></returns>
 	internal static bool IsBetween(this DateTime @this, DateTime start, DateTime end)
 	{
-		return start <= @this && @this <= end;
+		return start < @this && @this < end;
 	}
 
 	/// <summary>
-	/// Checks if the DateTime is within the provided start and end times (exclusive).
+	/// Checks if the DateTime is within the provided start and end times (inclusive).
 	/// </summary>
 	/// <param name="start"></param>
 	/// <param name="end"></param>
 	/// <returns></returns>
 	internal static bool IsWithin(this DateTime @this, DateTime start, DateTime end)
 	{
-		return start < @this && @this < end;
+		return start <= @this && @this <= end;
 	}
 
 	internal static string ComputeFileHash(string v)
