@@ -1,6 +1,7 @@
 using System;
 using System.Data;
 using System.IO.Compression;
+using System.Runtime.ExceptionServices;
 using System.Text;
 using System.Text.Encodings.Web;
 using System.Text.Json;
@@ -274,9 +275,100 @@ public class Processor
 			}
 			programmesHtml.AppendLine("</tr>");
 		}
-		string templatePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "previewtab.partial.html");
+		string templatePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "preview.partial.html");
 		string previewHtml = File.ReadAllText(templatePath);
 		previewHtml = string.Format(previewHtml, t1, t2, t3, t4, t5, programmesHtml.ToString());
+		return previewHtml;
+	}
+
+	internal string GenerateReviewContent()
+	{
+		double totalChannels = _configStore.SelectedChannels.Count();
+		ChannelMappingList allMappings = new ChannelMappingList(_configStore.SelectedChannels.SelectMany(c => c.EpgChannelIds));
+		/*<div class="review-epg" id="review-epg-{0}"><div id="review-epg-{0}-name">{1}</div><div id="review-epg-{0}-coverage">{2}</div><div id="review-epg-{0}-accuracy">{3}</div></div>*/
+		string templatePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "reviewepgsource.partial.html");
+		string epgsourcesHtml = File.ReadAllText(templatePath);
+		epgsourcesHtml = string.Join("\n", _configStore.SourceConfig.EpgUrls.OrderBy(s=>s.Priority).ThenBy(s => s.Name).Select(es => string.Format(epgsourcesHtml,
+			es.Id,
+			es.Name,
+			allMappings[es.Id].Count() / totalChannels,
+			_cacheStore.ReviewFeedback.GetAccuracyForSource(es.Id),
+			string.Join(", ", _cacheStore.ReviewFeedback.Where(rf => rf.SourceId == es.Id).Select(rf => rf.Offset.ToString("0.0")).Distinct())
+			)));
+
+		DateTime startTime = DateTime.Today.AddHours(DateTime.Now.Hour);
+		List<DateTime> slotTimes = [startTime];
+		slotTimes.Add(slotTimes.Last().AddMinutes(30));
+		slotTimes.Add(slotTimes.Last().AddMinutes(30));
+		slotTimes.Add(slotTimes.Last().AddMinutes(30));
+		slotTimes.Add(slotTimes.Last().AddMinutes(30));
+		var allProgrammes = EpgParser.ParseEpgDoc(_outputStore.Epg ?? new XDocument(), 0.0).Programmes;
+		var programmesHtml = new StringBuilder();
+		EpgProgrammeList programmes;
+		EpgProgramme programme;
+		templatePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "reviewchannel.partial.html");
+		string channelHtmlTemplate = File.ReadAllText(templatePath);
+		templatePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "reviewfeedback.partial.html");
+		string feedbackHtmlTemplate = File.ReadAllText(templatePath);
+		foreach (SelectedChannel channel in _configStore.SelectedChannels)
+		{
+			bool firstSource = true;
+			if ((channel.EpgChannelIds?.Count ?? 0) < 1)
+			{
+				programmesHtml.Append($"<tr data-channelid=\"{channel.Id}\" data-sourceid=\"N/A\">");
+				programmesHtml.Append($"<td class=\"review-channel-column\" rowspan=\"1\">{string.Format(channelHtmlTemplate, channel.LogoUri, channel.Name)}</td>");
+				programmesHtml.Append($"<td class=\"review-feedback-column\" rowspan=\"1\">{string.Format(feedbackHtmlTemplate, string.Empty, string.Empty)}</td>");
+				programmesHtml.Append($"<td class=\"review-timeslot-column\" colspan=\"5\">No Info</td>");
+				programmesHtml.AppendLine("</tr>");
+			}
+			else
+			{
+				foreach (ChannelMapping mapping in (channel?.EpgChannelIds ?? []).OrderBy(m => _configStore.SourceConfig.EpgUrls.First(es => es.Id == m.SourceId).Priority))
+				{
+					programmesHtml.Append($"<tr data-channelid=\"{channel.Id}\" data-sourceid=\"{mapping.SourceId}\">");
+					if (firstSource) programmesHtml.Append($"<td class=\"review-channel-column\" rowspan=\"{channel.EpgChannelIds.Count()}\">{string.Format(channelHtmlTemplate, channel.LogoUri, channel.Name)}</td>");
+					firstSource = false;
+					var feedback = _cacheStore.ReviewFeedback.FirstOrDefault(rf => rf.SourceId == mapping.SourceId && rf.ChannelId == channel.Id);
+					programmesHtml.Append($"<td class=\"review-feedback-column\" rowspan=\"1\">{string.Format(feedbackHtmlTemplate, feedback?.IsAccurate ?? false ? "checked" : string.Empty, feedback?.Offset ?? 0.0)}</td>");
+					programmes = new EpgProgrammeList(_cacheStore.EpgProgrammes[mapping.SourceId].Where(p => p.ChannelId == mapping.EpgId && (p.StartTime.IsWithin(slotTimes[0], slotTimes[4].AddSeconds(-1)) || p.EndTime.IsWithin(slotTimes[0].AddSeconds(1), slotTimes[4]))).OrderBy(p => p.StartTime));
+					int skipped = 0;
+					for (int slot = 0; slot < 5; slot++)
+					{
+						try
+						{
+							if ((slot - skipped) < programmes.Count)
+							{
+								programme = programmes[slot - skipped];
+								if (slotTimes[slot].IsWithin(programme.StartTime, programme.EndTime))
+								{
+									int slots = (int)Math.Ceiling((programme.EndTime - (programme.StartTime < slotTimes[0] ? slotTimes[0] : programme.StartTime)).TotalMinutes / 30.0);
+									slots = slots > (5 - slot) ? (5 - slot) : slots < 1 ? 1 : slots;
+									programmesHtml.Append($"<td class=\"review-timeslot-column\" colspan=\"{slots}\">{programme.Title}<br />{programme.Description}<br />{programme.StartTime:t} - {programme.EndTime:t}</td>");
+									slot += slots - 1;
+								}
+								else
+								{
+									skipped++;
+								}
+							}
+							else
+							{
+								programmesHtml.Append($"<td class=\"review-timeslot-column\" colspan=\"{skipped}\">No Info</td>");
+							}
+						}
+						catch
+						{
+							programmesHtml.Append($"<td class=\"review-timeslot-column\" colspan=\"{5 - slot}\">No Info</td>");
+							slot = 5;
+						}
+					}
+					programmesHtml.AppendLine("</tr>");
+				}
+			}
+		}
+		templatePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "review.partial.html");
+		string previewHtml = File.ReadAllText(templatePath);
+		previewHtml = string.Format(previewHtml, epgsourcesHtml, slotTimes[0], slotTimes[1], slotTimes[2], slotTimes[3], slotTimes[4], programmesHtml.ToString());
 		return previewHtml;
 	}
 }

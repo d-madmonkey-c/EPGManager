@@ -37,39 +37,45 @@ public static class EpgBuilder
 		XElement programmeElement, titleElement, descElement;
 		foreach (EpgSource source in sources.OrderBy(s => s.Priority).ThenBy(s => s.Name))
 		{
-			var mappings = channelMappings[source.Id];
-			var programmes = cacheStore.EpgProgrammes[source.Id].Where(p => mappings.ContainsKey(p.ChannelId));
-			string channelId;
-			foreach (EpgProgramme programme in programmes)
+			try
 			{
-				channelId = mappings[programme.ChannelId];
-				if (selectedProgrammes.Any(p =>
-					p.ChannelId == channelId
-					&& p.IsOverlapping(programme)
-				)) continue;
-				programmeElement = new XElement("programme");
-				//programmeElement.SetAttributeValue("start", programme.StartTime.ToString(PROGRAMME_TIME_FORMAT));
-				//programmeElement.SetAttributeValue("stop", programme.EndTime.ToString(PROGRAMME_TIME_FORMAT));
-				programmeElement.SetAttributeValue("start", programme.StartTime.ToUniversalTime().ToString("yyyyMMddHHmmss +0000"));
-				programmeElement.SetAttributeValue("stop", programme.EndTime.ToUniversalTime().ToString("yyyyMMddHHmmss +0000"));
-				programmeElement.SetAttributeValue("channel", channelId);
-				titleElement = new XElement("title");
-				titleElement.SetAttributeValue("lang", "en");
-				titleElement.SetValue(programme.Title);
-				programmeElement.Add(titleElement);
-				descElement = new XElement("desc");
-				descElement.SetAttributeValue("lang", "en");
-				descElement.SetValue(programme.Description);
-				programmeElement.Add(descElement);
-				root.Add(programmeElement);
-				selectedProgrammes.Add(new EpgProgramme
+				var mappings = channelMappings[source.Id];
+				var programmes = cacheStore.EpgProgrammes[source.Id].Where(p => mappings.ContainsKey(p.ChannelId));
+				string channelId;
+				foreach (EpgProgramme programme in programmes)
 				{
-					ChannelId = channelId,
-					Title = programme.Title,
-					Description = programme.Description,
-					StartTime = programme.StartTime,
-					EndTime = programme.EndTime
-				});
+					channelId = mappings[programme.ChannelId];
+					if (selectedProgrammes.Any(p =>
+						p.ChannelId == channelId
+						&& p.IsOverlapping(programme)
+					)) continue;
+					programmeElement = new XElement("programme");
+					//programmeElement.SetAttributeValue("start", programme.StartTime.ToString(PROGRAMME_TIME_FORMAT));
+					//programmeElement.SetAttributeValue("stop", programme.EndTime.ToString(PROGRAMME_TIME_FORMAT));
+					programmeElement.SetAttributeValue("start", programme.StartTime.ToUniversalTime().ToString("yyyyMMddHHmmss +0000"));
+					programmeElement.SetAttributeValue("stop", programme.EndTime.ToUniversalTime().ToString("yyyyMMddHHmmss +0000"));
+					programmeElement.SetAttributeValue("channel", channelId);
+					titleElement = new XElement("title");
+					titleElement.SetAttributeValue("lang", "en");
+					titleElement.SetValue(programme.Title);
+					programmeElement.Add(titleElement);
+					descElement = new XElement("desc");
+					descElement.SetAttributeValue("lang", "en");
+					descElement.SetValue(programme.Description);
+					programmeElement.Add(descElement);
+					root.Add(programmeElement);
+					selectedProgrammes.Add(new EpgProgramme
+					{
+						ChannelId = channelId,
+						Title = programme.Title,
+						Description = programme.Description,
+						StartTime = programme.StartTime,
+						EndTime = programme.EndTime
+					});
+				}
+			}catch(Exception ex)
+			{
+
 			}
 		}
 

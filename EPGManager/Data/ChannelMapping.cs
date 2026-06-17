@@ -10,16 +10,11 @@ public class ChannelMappingList : List<ChannelMapping>
 
 	public ChannelMappingList(IEnumerable<ChannelMapping> items) : base(items) { }
 
+	// TODO - this casues System.ArgumentException: An item with the same key has already been added. Key: 470718
 	[JsonIgnore]
 	public Dictionary<string, string> this[string sourceId]
 	{
-		get => this.Where(cm => cm.SourceId == sourceId).Select(cm => new { cm.EpgId, cm.ChannelId }).ToDictionary(x => x.EpgId, x => x.ChannelId);
-	}
-
-	[JsonIgnore]
-	public string this[string sourceId, string epgId]
-	{
-		get => this.FirstOrDefault(cm => cm.SourceId == sourceId && cm.EpgId == epgId)?.ChannelId ?? epgId;
+		get => this.Where(cm => cm.SourceId == sourceId).Select(cm => new { cm.EpgId, cm.ChannelId }).Distinct().ToDictionary(x => x.EpgId, x => x.ChannelId);
 	}
 }
 

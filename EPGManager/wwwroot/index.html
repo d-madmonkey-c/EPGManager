@@ -1,8 +1,12 @@
 <html>
 
 <head>
-	<link rel="stylesheet" href="styles.css?{0}" />
-	<script src="scripts.js?{1}"></script>
+	<link rel="stylesheet" href="common.styles.css?{0}" />
+	<link rel="stylesheet" href="preview.styles.css?{0}" />
+	<link rel="stylesheet" href="review.styles.css?{0}" />
+	<script src="common.scripts.js?{1}"></script>
+	<script src="preview.scripts.js?{1}"></script>
+	<script src="review.scripts.js?{1}"></script>
 </head>
 
 <body>
@@ -23,6 +27,7 @@
 		<label class="tab-label" for="tab-sources">Sources <button type="button" class="refresh-button" onclick="refreshSourcesTab()">↻</button></label>
 		<label class="tab-label" for="tab-channels">Channels <button type="button" class="refresh-button" onclick="refreshChannelsTab()">↻</button></label>
 		<label class="tab-label" for="tab-preview">Preview <button type="button" class="refresh-button" onclick="refreshPreviewTab()">↻</button></label>
+		<label class="tab-label" for="tab-review">Review <button type="button" class="refresh-button" onclick="refreshReviewTab()">↻</button></label>
 	</div>
 
 	<input type="radio" id="tab-sources" name="tab" class="tab" checked>
@@ -39,6 +44,12 @@
 	<div id="tab-content-preview" class="tab-content">
 		{5}
 	</div>
+
+	<input type="radio" id="tab-review" name="tab" class="tab">
+	<div id="tab-content-review" class="tab-content">
+		{6}
+	</div>
+
 	<div style='clear: both;'></div>
 
 	<br />
@@ -49,8 +60,7 @@
 		<div class="modal-content">
 			<span class="close" onclick="closeEpgMappingModal()">&times;</span>
 			<h2>Add EPG Mapping</h2>
-			<div id="modal-channel-name" style="display: inline;">Channel Name</div> : <div id="modal-channel-id"
-				style="display: inline;">Channel Id</div><br />
+			<div id="modal-channel-name" style="display: inline;">Channel Name</div> : <div id="modal-channel-id" style="display: inline;">Channel Id</div><br />
 			<p>Select an EPG source and channel to map to this M3U channel.</p>
 			<label for="epg-source-select" style="display: inline-block; width: 110px;">EPG Source:</label>
 			<select id="epg-source-select" style="width: 475px; max-width: 475px;" onchange="loadEpgChannels()">

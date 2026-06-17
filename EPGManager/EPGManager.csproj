@@ -11,9 +11,4 @@
     <PackageReference Include="Microsoft.AspNetCore.StaticFiles" Version="2.3.9" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="Endpoints\" />
-    <Folder Include="oints\" />
-  </ItemGroup>
-
 </Project>

@@ -440,6 +440,21 @@ function refreshPreviewTab() {
 		.catch(error => alert('Error refreshing Preview: ' + error.message));
 }
 
+function refreshReviewTab() {
+	fetch('/reviewContent', { method: 'GET' })
+		.then(response => {
+			if (response.ok) {
+				return response.text();
+			} else {
+				throw new Error('Refresh failed');
+			}
+		})
+		.then(data => {
+			document.getElementById("tab-content-review").innerHTML = data;
+		})
+		.catch(error => alert('Error refreshing Review: ' + error.message));
+}
+
 // --- DRAG AND DROP FOR SELECTED CHANNELS ---
 
 let draggedItem = null;

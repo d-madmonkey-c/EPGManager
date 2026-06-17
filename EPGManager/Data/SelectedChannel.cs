@@ -1,6 +1,11 @@
 namespace EPGManager.Data;
 
-public class SelectedChannelList : List<SelectedChannel>;
+public class SelectedChannelList : List<SelectedChannel>
+{
+    public SelectedChannelList() { }
+
+    public SelectedChannelList(IEnumerable<SelectedChannel> items) : base(items) { }
+}
 
 public class SelectedChannel
 {
@@ -11,10 +16,10 @@ public class SelectedChannel
     public List<string> Groups { get; set; } = [];
     public ChannelMappingList EpgChannelIds { get; set; } = []; /*ChannelId, SourceId, EpgId*/
 
-	public override string ToString()
-	{
+    public override string ToString()
+    {
         return $"{Id} :  {Name}";
-	}
+    }
 }
 
 /*\"EpgChannelIds\":[{\"SourceId\":\"user_639104094568940684_1\",\"SourceName\":\"EPG Best\",\"EpgId\":\"470288\"}]*/

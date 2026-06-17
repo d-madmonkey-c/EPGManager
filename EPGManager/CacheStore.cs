@@ -13,6 +13,7 @@ public class CacheStore
 	public List<string> MissingChannelIds { get; set; } = new List<string>();
 	public Dictionary<string, EpgChannelList> EpgChannels { get; set; } = new Dictionary<string, EpgChannelList>();
 	public Dictionary<string, EpgProgrammeList> EpgProgrammes { get; set; } = new Dictionary<string, EpgProgrammeList>();
+	public ReviewFeedbackList ReviewFeedback { get; set; } = new ReviewFeedbackList();
 
 	public CacheStore()
 	{
@@ -32,6 +33,7 @@ public class CacheStore
 			var epgProgrammes = Utility.LoadJson<EpgProgrammeList>(Path.Combine(_cacheDir, $"epg_{epgId}_programmes.json")) ?? new EpgProgrammeList();
 			EpgProgrammes[epgId] = epgProgrammes;
 		}
+		ReviewFeedback = Utility.LoadJson<ReviewFeedbackList>(Path.Combine(_cacheDir, "review_feedback.json")) ?? new ReviewFeedbackList();
 	}
 
 	public void SaveAll()
@@ -52,6 +54,7 @@ public class CacheStore
 			var epgProgrammes = kvp.Value;
 			Utility.SaveJson(Path.Combine(_cacheDir, $"epg_{epgId}_programmes.json"), epgProgrammes);
 		}
+		Utility.SaveJson(Path.Combine(_cacheDir, "review_feedback.json"), ReviewFeedback);
 	}
 
 	/// <summary>
