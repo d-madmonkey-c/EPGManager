@@ -276,7 +276,7 @@ async function saveConfig() {
 	const epgUrls = [...document.getElementById('url-list').querySelectorAll("tr")].map(r => ({
 		Id: r.dataset.id,
 		Priority: Number(r.querySelector('[name="priority"]').value),
-		Offset: Number(r.querySelector('[name="offset"]').value),
+		Offset: "00:00:00", /*Number(r.querySelector('[name="offset"]').value),*/
 		Name: r.querySelector('[name="name"]').value,
 		Url: r.querySelector('[name="url"]').value
 	}));
@@ -311,10 +311,10 @@ async function saveConfig() {
 		.then(response => {
 			if (response.ok) {
 				alert("Configuration saved");
+				refreshSourcesTab();
 			} else {
 				alert("Error saving config");
 			}
-			refreshSourcesTab();
 		})
 		.catch(error => alert('Error saving config: ' + error.message));
 }

@@ -94,7 +94,9 @@ public class OutputStore
 		if ((_epg?.Elements().Count() ?? -1) > 0)
 		{
 			using (var writer = XmlWriter.Create(_epgXmlPath, _xmlSettings))
+#pragma warning disable CS8602 // Dereference of a possibly null reference.
 				_epg.Save(writer);
+#pragma warning restore CS8602 // Dereference of a possibly null reference.
 
 			// Gzip the file
 			using (var input = File.OpenRead(_epgXmlPath))

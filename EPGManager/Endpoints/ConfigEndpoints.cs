@@ -28,6 +28,7 @@ public static class ConfigEndpoints
 
 		app.MapPost("/config", async (ConfigUpdate request, ConfigStore configStore, CacheStore cacheStore) =>
 		{
+			configStore.Logger.LogInformation("Saving config update: {Request}", JsonSerializer.Serialize(request, new JsonSerializerOptions { WriteIndented = true, Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping }));
 			var config = configStore.SourceConfig;
 
 			// M3U URL

@@ -9,7 +9,7 @@ public class EpgParser
 	private const string PROGRAMME_TIME_FORMAT = "yyyyMMddHHmmss zzz";
 	private static readonly DateTime _cutoffDate = DateTime.Today.AddDays(-2);
 
-	public static (EpgChannelList Channels, EpgProgrammeList Programmes) ParseEpgDoc(XDocument doc, double offset)
+	public static (EpgChannelList Channels, EpgProgrammeList Programmes) ParseEpgDoc(XDocument doc, TimeSpan offset)
 	{
 		EpgChannelList channels = new EpgChannelList(doc.Root?
 			.Elements("channel")
@@ -28,8 +28,8 @@ public class EpgParser
 				ChannelId = (string)pr.Attribute("channel")!,
 				Title = (string)pr.Element("title")!,
 				Description = (string?)pr.Element("desc") ?? string.Empty,
-				StartTime = DateTime.ParseExact((string)pr.Attribute("start")!, PROGRAMME_TIME_FORMAT, null).AddHours(offset),
-				EndTime = DateTime.ParseExact((string)pr.Attribute("stop")!, PROGRAMME_TIME_FORMAT, null).AddHours(offset)
+				StartTime = DateTime.ParseExact((string)pr.Attribute("start")!, PROGRAMME_TIME_FORMAT, null).Add(offset),
+				EndTime = DateTime.ParseExact((string)pr.Attribute("stop")!, PROGRAMME_TIME_FORMAT, null).Add(offset)
 			})
 			.Where(pr => pr.StartTime >= _cutoffDate)
 			.ToList() ?? []);

@@ -5,12 +5,19 @@ namespace EPGManager;
 
 public class ConfigStore
 {
+	private readonly ILogger<ConfigStore> _logger;
+	public ILogger<ConfigStore> Logger{get => _logger;}
+
 	private readonly string SourceConfigPath = Path.Combine(AppContext.BaseDirectory, "config", "sourceconfig.json");
 	private readonly string SelectedChannelsPath = Path.Combine(AppContext.BaseDirectory, "config", "selectedchannels.json");
 
 	public SourceConfig SourceConfig { get; private set; } = new SourceConfig();
 	public SelectedChannelList SelectedChannels { get; private set; } = new SelectedChannelList();
 
+	public ConfigStore(ILogger<ConfigStore> logger)
+	{
+		_logger = logger;
+	}
 	public void LoadAll()
 	{
 		SourceConfig = Utility.LoadJson<SourceConfig>(SourceConfigPath) ?? new SourceConfig();

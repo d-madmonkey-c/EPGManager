@@ -23,4 +23,5 @@ public class ChannelMapping
 	public string ChannelId { get; set; } = string.Empty;
 	public string SourceId { get; set; } = string.Empty;
 	public string EpgId { get; set; } = string.Empty;
+	public TimeSpan? Offset { get; set; } = null;
 }

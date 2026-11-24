@@ -25,11 +25,14 @@ function updateAccuracy(source) {
 }
 
 function collateReviewFeedback() {
-	const feedback = [...document.getElementById('review-table').querySelectorAll("tr[data-channelid]:not([data-channelid=\"\"])")].map(r => ({
-		ChannelId: r.dataset.channelid,
-		SourceId: r.dataset.sourceid,
-		IsAccurate: r.querySelector('input[name="accurate"]:checked') !== null,
-		Offset: Number(r.querySelector('[name="offset"]').value ?? 0)
-	}));
+	var feedback = [];
+	if (document.getElementById('review-table')) {
+		feedback = [...document.getElementById('review-table').querySelectorAll("tr[data-channelid]:not([data-channelid=\"\"])")].map(r => ({
+			ChannelId: r.dataset.channelid,
+			SourceId: r.dataset.sourceid,
+			IsAccurate: r.querySelector('input[name="accurate"]:checked') !== null,
+			Offset: Number(r.querySelector('[name="offset"]').value ?? 0)
+		}));
+	}
 	return feedback;
 }

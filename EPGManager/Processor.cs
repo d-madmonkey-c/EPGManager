@@ -251,7 +251,7 @@ public class Processor
 		DateTime t3 = t2.AddMinutes(30);
 		DateTime t4 = t3.AddMinutes(30);
 		DateTime t5 = t4.AddMinutes(30);
-		var allProgrammes = EpgParser.ParseEpgDoc(_outputStore.Epg ?? new XDocument(), 0.0).Programmes;
+		var allProgrammes = EpgParser.ParseEpgDoc(_outputStore.Epg ?? new XDocument(), TimeSpan.Zero).Programmes;
 		var programmesHtml = new StringBuilder();
 		EpgProgrammeList programmes;
 		foreach (SelectedChannel channel in _configStore.SelectedChannels)
@@ -302,7 +302,7 @@ public class Processor
 		slotTimes.Add(slotTimes.Last().AddMinutes(30));
 		slotTimes.Add(slotTimes.Last().AddMinutes(30));
 		slotTimes.Add(slotTimes.Last().AddMinutes(30));
-		var allProgrammes = EpgParser.ParseEpgDoc(_outputStore.Epg ?? new XDocument(), 0.0).Programmes;
+		var allProgrammes = EpgParser.ParseEpgDoc(_outputStore.Epg ?? new XDocument(), TimeSpan.Zero).Programmes;
 		var programmesHtml = new StringBuilder();
 		EpgProgrammeList programmes;
 		EpgProgramme programme;
