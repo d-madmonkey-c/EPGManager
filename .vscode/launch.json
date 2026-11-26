@@ -1,11 +1,10 @@
 {
 	"configurations": [
 		{
-			"name": "C#: EPGManager.API [http]",
+			"name": "C#: EPG Manager Debug",
 			"type": "dotnet",
 			"request": "launch",
-			"projectPath": "${workspaceFolder}\\EPGManager.API\\EPGManager.API.csproj",
-			"launchConfigurationId": "TargetFramework=;http"
+			"projectPath": "${workspaceFolder}/EPGManager/EPGManager.csproj"
 		}
 	]
 }

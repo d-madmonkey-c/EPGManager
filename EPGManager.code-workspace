@@ -2,10 +2,16 @@
 	"folders": [
 		{
 			"path": "."
+		},
+		{
+			"path": "../../david/OneDrive/Copilot Notebooks/Development Operating System"
 		}
 	],
 	"settings": {
-		"dotnet.defaultSolution": "EPGManager.slnx"
+		"dotnet.defaultSolution": "EPGManager.slnx",
+		"cSpell.words": [
+			"wwwroot"
+		]
 	},
 	"extensions": {
 		"recommendations": [
