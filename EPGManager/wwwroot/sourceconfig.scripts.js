@@ -247,8 +247,8 @@ function applySettings(tvgId) {
 	}
 }
 
-function addUrlRow(name = '', url = '', priority = '', offset = '') {
-	const tbody = document.getElementById('url-list');
+function addEpgUrlRow(name = '', url = '', priority = '', offset = '') {
+	const tbody = document.getElementById('epg-url-list');
 	const row = document.createElement('tr');
 	row.classList.add('changed');
 	row.dataset.id = '';
@@ -273,10 +273,10 @@ function removeUrlRow(button) {
 }
 
 async function saveConfig() {
-	const epgUrls = [...document.getElementById('url-list').querySelectorAll("tr")].map(r => ({
+	const epgUrls = [...document.getElementById('epg-url-list').querySelectorAll("tr")].map(r => ({
 		Id: r.dataset.id,
 		Priority: Number(r.querySelector('[name="priority"]').value),
-		Offset: Number(r.querySelector('[name="offset"]').value),
+		Offset: (() => { const ms = Math.round(Number(r.querySelector('[name="offset"]').value) * 3600000), abs = Math.abs(ms), days = Math.floor(abs / 86400000); return `${ms < 0 ? '-' : ''}${days ? `${days}.` : ''}${String(Math.floor(abs / 3600000) % 24).padStart(2, '0')}:${String(Math.floor(abs / 60000) % 60).padStart(2, '0')}:${String(Math.floor(abs / 1000) % 60).padStart(2, '0')}${abs % 1000 ? `.${String(abs % 1000).padStart(3, '0')}` : ''}`; })(),  /*Offset: Number(r.querySelector('[name="offset"]').value),*/
 		Name: r.querySelector('[name="name"]').value,
 		Url: r.querySelector('[name="url"]').value
 	}));
@@ -345,7 +345,7 @@ function refreshOutputs() {
 		.catch(error => alert('Error triggering refresh: ' + error.message));
 }
 
-function refreshM3u() {
+function refreshAllM3u() {
 	if (!confirm('Download latest M3U file and update available channels? New channels will be highlighted.')) {
 		return;
 	}

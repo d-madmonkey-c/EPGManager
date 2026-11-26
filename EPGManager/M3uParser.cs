@@ -11,7 +11,7 @@ public static class M3uParser
 	private static readonly Regex AttrRegex =
 		new(@"(?<key>[a-zA-Z0-9\-]+)=""(?<value>[^""]*)""", RegexOptions.Compiled);
 
-	public static ChannelList Parse(string m3uContent)
+	public static ChannelList Parse(string sourceId, int priority, string m3uContent)
 	{
 		var lines = m3uContent.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 		var result = new ChannelList();
@@ -38,11 +38,13 @@ public static class M3uParser
 			if (string.IsNullOrWhiteSpace(tvgId))
 				continue;
 
-			result.Add(new Channel
+			result.Add(new ChannelSource
 			{
-				Id = tvgId,
+				SourceId = sourceId,
+				Priority = priority,
+				TvgId = tvgId,
 				//Name = displayName,
-				Name = displayName ?? tvgName,
+				Name = displayName ?? tvgName ?? string.Empty,
 				Group = groupTitle,
 				//OriginalTvgName = tvgName,
 				LogoUri = tvgLogo,

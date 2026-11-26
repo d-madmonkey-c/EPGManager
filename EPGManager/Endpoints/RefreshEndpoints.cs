@@ -50,6 +50,23 @@ public static class RefreshEndpoints
 			}
 		});
 
+		app.MapPost("/refresh/m3u/{id}", async (
+			Processor processor,
+			CacheStore cacheStore,
+			string id) =>
+		{
+			try
+			{
+				await processor.RefreshM3uAsync(id);
+				var newChannelCount = cacheStore.NewChannelIds.Count;
+				return Results.Ok(new { success = true, message = $"M3U refreshed. Found {newChannelCount} new channels." });
+			}
+			catch (Exception ex)
+			{
+				return Results.BadRequest(new { success = false, error = ex.Message });
+			}
+		});
+
 		app.MapPost("/refresh-epg", async (
 			Processor processor,
 			CacheStore cacheStore) =>

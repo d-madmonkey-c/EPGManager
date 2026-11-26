@@ -92,6 +92,35 @@ function showSettings(channelNameElement) {
 	contentElement.style.display = 'block';
 }
 
+function addM3uUrlRow(name = '', url = '', priority = '') {
+	const tbody = document.getElementById('m3u-url-list');
+	const priorities = [...tbody.querySelectorAll('[name="priority"]')]
+		.map(input => Number(input.value))
+		.filter(Number.isFinite);
+
+	if (priority === '') {
+		priority = priorities.length ? Math.max(...priorities) + 1 : 1;
+	}
+
+	const row = document.createElement('tr');
+	row.dataset.id = '';
+	row.innerHTML = `
+		<td class="column-priority"><input style="width:100%" type="number" name="priority" value="${priority}" min="1" required></td>
+		<td class="column-name"><input style="width:100%" type="text" name="name" value="${name}" placeholder="M3U Source Name" required></td>
+		<td class="column-url"><input style="width:100%" type="url" name="url" value="${url}" placeholder="M3U Source Url" required></td>
+		<td class="column-actions">
+			<div class="icon-trash" style="float: left" onclick='removeUrlRow(this)'>
+				<div class="trash-lid" style="background-color: #4d4d4d"></div>
+				<div class="trash-container" style="background-color: #4d4d4d"></div>
+				<div class="trash-line-1"></div>
+				<div class="trash-line-2"></div>
+				<div class="trash-line-3"></div>
+			</div>
+		</td>
+	`;
+	tbody.appendChild(row);
+}
+
 function renderEpgMappings(epgIds) {
 	/*
 	<div class="icon-trash" style="float: left">
@@ -112,7 +141,13 @@ function renderEpgMappings(epgIds) {
 	if (!epgs || epgs.length <= 0) return '<p>No EPG mappings</p>';
 	var html = '<ul id="settings-epgList">';
 	for (var epg of epgs) {
-		html += `<li data-sourceId="${epg.SourceId}" data-sourceName="${epg.SourceName}" data-epgId="${epg.EpgId}">${epg.SourceName}: ${epg.EpgId}</li>`;
+		html += `<li data-sourceId="${epg.SourceId}" data-sourceName="${epg.SourceName}" data-epgId="${epg.EpgId}">${epg.SourceName}: ${epg.EpgId}&nbsp;<div class="icon-trash" style="float: right" onclick='removeEpgMapping(this)'>
+			<div class="trash-lid" style="background-color: #4d4d4d"></div>
+			<div class="trash-container" style="background-color: #4d4d4d"></div>
+			<div class="trash-line-1"></div>
+			<div class="trash-line-2"></div>
+			<div class="trash-line-3"></div>
+		</div></li>`;
 	}
 	html += '</ul>';
 	return html;
@@ -216,11 +251,10 @@ function addSelectedEpgMapping(channelNameElement) {
 	//showSettings(channelNameElement); // Refresh the UI
 }
 
-function removeEpgMapping(tvgId, sourceId) {
-	const channel = getSelectedChannel(tvgId);
-	if (channel && channel.epgChannelIds[sourceId]) {
-		delete channel.epgChannelIds[sourceId];
-		showSettings(tvgId); // Refresh the UI
+function removeEpgMapping(mappingElement) {
+	const mapping = mappingElement.closest('li');
+	if (mapping) {
+		mapping.remove();
 	}
 }
 
@@ -247,8 +281,8 @@ function applySettings(tvgId) {
 	}
 }
 
-function addUrlRow(name = '', url = '', priority = '', offset = '') {
-	const tbody = document.getElementById('url-list');
+function addEpgUrlRow(name = '', url = '', priority = '', offset = '') {
+	const tbody = document.getElementById('epg-url-list');
 	const row = document.createElement('tr');
 	row.classList.add('changed');
 	row.dataset.id = '';
@@ -256,7 +290,7 @@ function addUrlRow(name = '', url = '', priority = '', offset = '') {
         <td class="column-priority"><input style="width:100%" type="number" name="priority" value="${priority}" min="1" required></td>
         <td class="column-offset"><input style="width:100%" type="number" name="offset" value="${offset}" required></td>
         <td class="column-name"><input style="width:100%" type="text" name="name" value="${name}" placeholder="EPG Source Name" required></td>
-        <td class="column-url"><input style="width:100%" type="url" name="url" value="${url}" required></td>
+        <td class="column-url"><input style="width:100%" type="url" name="url" value="${url}" placeholder="EPG Source Url" required></td>
         <td class="column-actions"><div class="icon-trash" style="float: left" onclick='removeUrlRow(this)'>
 			<div class="trash-lid" style="background-color: #4d4d4d"></div>
 			<div class="trash-container" style="background-color: #4d4d4d"></div>
@@ -273,15 +307,22 @@ function removeUrlRow(button) {
 }
 
 async function saveConfig() {
-	const epgUrls = [...document.getElementById('url-list').querySelectorAll("tr")].map(r => ({
+	const m3uUrls = [...document.getElementById('m3u-url-list').querySelectorAll('tr')]?.map(r => ({
+		Id: r.dataset.id,
+		Priority: Number(r.querySelector('[name="priority"]').value),
+		Name: r.querySelector('[name="name"]').value,
+		Url: r.querySelector('[name="url"]').value
+	})) ?? [];
+
+	const epgUrls = [...document.getElementById('epg-url-list').querySelectorAll("tr")]?.map(r => ({
 		Id: r.dataset.id,
 		Priority: Number(r.querySelector('[name="priority"]').value),
 		Offset: "00:00:00", /*Number(r.querySelector('[name="offset"]').value),*/
 		Name: r.querySelector('[name="name"]').value,
 		Url: r.querySelector('[name="url"]').value
-	}));
+	})) ?? [];
 
-	const selectedChannels = [...document.querySelectorAll('#selected-list .channel-name')].map(c => ({
+	const selectedChannels = [...document.querySelectorAll('#selected-list .channel-name')]?.map(c => ({
 		Id: c.dataset.id,
 		Name: c.dataset.name,
 		LogoUri: c.dataset.logo,
@@ -292,10 +333,10 @@ async function saveConfig() {
 			SourceId: cm.SourceId,
 			EpgId: cm.EpgId
 		}))
-	}));
+	})) ?? [];
 
 	const payload = {
-		PrimaryUrl: document.querySelector("input[name='PrimaryUrl']").value,
+		M3uUrls: m3uUrls,
 		EpgUrls: epgUrls,
 		SelectedChannels: selectedChannels,
 		ReviewFeedback: collateReviewFeedback()
@@ -346,7 +387,7 @@ function refreshOutputs() {
 		.catch(error => alert('Error triggering refresh: ' + error.message));
 }
 
-function refreshM3u() {
+function refreshAllM3u() {
 	if (!confirm('Download latest M3U file and update available channels? New channels will be highlighted.')) {
 		return;
 	}
@@ -359,6 +400,19 @@ function refreshM3u() {
 				// Reload the page to show updated channels
 				//window.location.reload();
 				refreshChannelsTab();
+			} else {
+				alert('Error: ' + data.error);
+			}
+		})
+		.catch(error => alert('Error refreshing M3U: ' + error.message));
+}
+
+function refreshM3u(id) {
+	fetch(`/refresh/m3u/${id}`, { method: 'POST' })
+		.then(response => response.json())
+		.then(data => {
+			if (data.success) {
+				alert(data.message);
 			} else {
 				alert('Error: ' + data.error);
 			}

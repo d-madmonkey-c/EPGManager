@@ -247,8 +247,8 @@ function applySettings(tvgId) {
 	}
 }
 
-function addUrlRow(name = '', url = '', priority = '', offset = '') {
-	const tbody = document.getElementById('url-list');
+function addEpgUrlRow(name = '', url = '', priority = '', offset = '') {
+	const tbody = document.getElementById('epg-url-list');
 	const row = document.createElement('tr');
 	row.classList.add('changed');
 	row.dataset.id = '';
@@ -273,7 +273,7 @@ function removeUrlRow(button) {
 }
 
 async function saveConfig() {
-	const epgUrls = [...document.getElementById('url-list').querySelectorAll("tr")].map(r => ({
+	const epgUrls = [...document.getElementById('epg-url-list').querySelectorAll("tr")].map(r => ({
 		Id: r.dataset.id,
 		Priority: Number(r.querySelector('[name="priority"]').value),
 		Offset: Number(r.querySelector('[name="offset"]').value),
@@ -345,7 +345,7 @@ function refreshOutputs() {
 		.catch(error => alert('Error triggering refresh: ' + error.message));
 }
 
-function refreshM3u() {
+function refreshAllM3u() {
 	if (!confirm('Download latest M3U file and update available channels? New channels will be highlighted.')) {
 		return;
 	}

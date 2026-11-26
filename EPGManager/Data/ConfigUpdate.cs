@@ -4,7 +4,8 @@ namespace EPGManager.Data;
 
 public class ConfigUpdate
 {
-	public string PrimaryUrl { get; set; }
+	//public string PrimaryUrl { get; set; }
+	public List<M3uSource> M3uUrls { get; set; }
 	public List<EpgSource> EpgUrls { get; set; }
 	public SelectedChannelList SelectedChannels { get; set; }
 	public ReviewFeedbackList ReviewFeedback { get; set; }

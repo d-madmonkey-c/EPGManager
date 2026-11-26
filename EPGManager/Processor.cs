@@ -38,41 +38,87 @@ public class Processor
 		{
 			var config = _configStore.SourceConfig;
 
-			if (string.IsNullOrWhiteSpace(config.M3uUrl))
+			if (config.M3uUrls == null || config.M3uUrls.Count < 1)
 			{
-				_logger.LogWarning("Primary M3U URL not configured.");
+				_logger.LogWarning("No M3U URLs configured.");
 				return;
 			}
 
 			var currentIds = new List<string>(_cacheStore.Channels.Select(c => c.Id));
 
-			// Download and cache M3U content
-			var m3uText = await DownloadText(config.M3uUrl, ct);
-
-			// Parse channels
-			var channels = M3uParser.Parse(m3uText);
-			_cacheStore.Channels = channels;
-
-			// Update Urls for Selected Channels
-			foreach (SelectedChannel selected in _configStore.SelectedChannels)
+			ChannelList newChannels = new ChannelList();
+			foreach (M3uSource source in config.M3uUrls)
 			{
-				selected.Uri = channels.FirstOrDefault(c => c.Id == selected.Id)?.Uri ?? selected.Uri;
+				try
+				{
+					// Download and cache M3U content
+					var m3uText = await DownloadText(source.Url, ct);
+
+					// Parse channels
+					var channels = M3uParser.Parse(source.Id, source.Priority, m3uText);
+					newChannels.Combine(channels);
+				}
+				catch (OperationCanceledException) when (ct.IsCancellationRequested)
+				{
+					throw;
+				}
+				catch (Exception ex)
+				{
+					_logger.LogWarning(ex, "Failed refreshing M3U source {SourceId} ({SourceName}).", source.Id, source.Name);
+				}
 			}
 
+			// Identify new channels
+			var newIds = newChannels.Select(c => c.Id).Except(_cacheStore.Channels.Select(c => c.Id)).ToList();
+			_cacheStore.NewChannelIds = newIds;
+
+			_cacheStore.Channels.Combine(newChannels);
+
 			// Identify missing channels
-			var missingIds = _configStore.SelectedChannels.Select(c => c.Id).Except(channels.Select(c => c.Id)).ToList();
+			var missingIds = _configStore.SelectedChannels.Select(c => c.Id).Except(_cacheStore.Channels.Select(c => c.Id)).ToList();
 			_cacheStore.MissingChannelIds = missingIds;
 
+			// // Update Urls for Selected Channels
+			// // TODO - Review this against multiple sources
+			// foreach (SelectedChannel selected in _configStore.SelectedChannels)
+			// {
+			// 	selected.Uri = newChannels.FirstOrDefault(c => c.Id == selected.Id)?.Uri ?? selected.Uri;
+			// }
+
+			_cacheStore.SaveAll();
+			_logger.LogInformation($"M3U refresh completed. Found {newChannels.Count} channels, {newIds.Count} new.");
+		}
+		catch (Exception ex)
+		{
+			_logger.LogError(ex, "Error refreshing M3U");
+			throw;
+		}
+	}
+
+	public async Task RefreshM3uAsync(string id, CancellationToken ct = default)
+	{
+		try
+		{
+			M3uSource source = _configStore.SourceConfig.M3uUrls.First(e => e.Id == id);
+			var m3uText = await DownloadText(source.Url, ct);
+			var channels = M3uParser.Parse(source.Id, source.Priority, m3uText);
+
 			// Identify new channels
-			var newIds = channels.Select(c => c.Id).Except(currentIds).ToList();
+			var newIds = channels.Select(c => c.Id).Except(_cacheStore.Channels.Where(c => c.Sources.Any(s => s.SourceId == id)).Select(c => c.Id)).ToList();
 			_cacheStore.NewChannelIds = newIds;
+
+			_cacheStore.Channels.Combine(channels);
+
+			// Identify missing channels
+			var missingIds = _configStore.SelectedChannels.Select(c => c.Id).Except(_cacheStore.Channels.Select(c => c.Id)).ToList();
+			_cacheStore.MissingChannelIds = missingIds;
 
 			_cacheStore.SaveAll();
 			_logger.LogInformation($"M3U refresh completed. Found {channels.Count} channels, {newIds.Count} new.");
 		}
 		catch (Exception ex)
 		{
-			_logger.LogError(ex, "Error refreshing M3U");
+			_logger.LogError(ex, "Failed processing M3U for {id}.", id);
 			throw;
 		}
 	}
@@ -173,16 +219,23 @@ public class Processor
 
 	internal string GenerateSourceConfigContent()
 	{
-		string templatePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "epgurl.partial.html");
+		string templatePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "m3uurl.partial.html");
 		string templateHtml = File.ReadAllText(templatePath);
-		var urlListHtml = string.Join("", _configStore.SourceConfig.EpgUrls
+		var m3uUrlListHtml = string.Join("", _configStore.SourceConfig.M3uUrls
+			.OrderBy(mu => mu.Priority)
+			.ThenBy(mu => mu.Name)
+			.Select(mu => string.Format(templateHtml, mu.Id, mu.Priority, mu.Name, mu.Url)));
+
+		templatePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "epgurl.partial.html");
+		templateHtml = File.ReadAllText(templatePath);
+		var epgUrlListHtml = string.Join("", _configStore.SourceConfig.EpgUrls
 			.OrderBy(eu => eu.Priority)
 			.ThenBy(eu => eu.Name)
 			.Select(eu => string.Format(templateHtml, eu.Id, eu.Priority, eu.Offset, eu.Name, eu.Url)));
 
 		templatePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "sourceconfig.partial.html");
 		templateHtml = File.ReadAllText(templatePath);
-		var sourceConfigHtml = string.Format(templateHtml, _configStore.SourceConfig.M3uUrl, urlListHtml);
+		var sourceConfigHtml = string.Format(templateHtml, m3uUrlListHtml, epgUrlListHtml);
 
 		return sourceConfigHtml;
 	}
@@ -221,6 +274,7 @@ public class Processor
 		templatePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "selectedchannel.partial.html");
 		string templateHtml = File.ReadAllText(templatePath);
 
+		var epgSources = _configStore.SourceConfig.EpgUrls ?? [];
 		var selectedChannelsHtml = string.Join("", selectedChannels.Select(c => string.Format(
 			templateHtml,
 			c.Id,
@@ -228,13 +282,19 @@ public class Processor
 			c.LogoUri,
 			c.Uri,
 			string.Join(", ", c.Groups),
-			HtmlEncoder.Default.Encode(JsonSerializer.Serialize(c.EpgChannelIds.OrderBy(eci => _configStore.SourceConfig.EpgUrls.First(eu => eu.Id == eci.SourceId).Priority).Select(eci => new
-			{
-				SourceId = eci.SourceId,
-				SourceName = _configStore.SourceConfig.EpgUrls.First(eu => eu.Id == eci.SourceId).Name,
-				EpgId = eci.EpgId
-			}
-		))))));
+			HtmlEncoder.Default.Encode(JsonSerializer.Serialize(c.EpgChannelIds
+				.Select(eci => new {
+						Mapping = eci,
+						Source = epgSources.FirstOrDefault(eu => eu.Id == eci.SourceId)
+				})
+				.OrderBy(item => item.Source?.Priority ?? int.MaxValue)
+				.Select(item => new	{
+						SourceId = item.Mapping.SourceId,
+						SourceName = item.Source?.Name ?? "Unknown",
+						EpgId = item.Mapping.EpgId
+				})
+			))
+		)));
 
 		templatePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "channelconfig.partial.html");
 		templateHtml = File.ReadAllText(templatePath);
@@ -323,13 +383,21 @@ public class Processor
 			}
 			else
 			{
-				foreach (ChannelMapping mapping in (channel?.EpgChannelIds ?? []).OrderBy(m => _configStore.SourceConfig.EpgUrls.First(es => es.Id == m.SourceId).Priority))
+				foreach (ChannelMapping mapping in (channel?.EpgChannelIds ?? []).OrderBy(m => _configStore.SourceConfig.EpgUrls.FirstOrDefault(es => es.Id == m.SourceId)?.Priority ?? int.MaxValue))
 				{
 					programmesHtml.Append($"<tr data-channelid=\"{channel.Id}\" data-sourceid=\"{mapping.SourceId}\">");
 					if (firstSource) programmesHtml.Append($"<td class=\"review-channel-column\" rowspan=\"{channel.EpgChannelIds.Count()}\">{string.Format(channelHtmlTemplate, channel.LogoUri, channel.Name)}</td>");
 					firstSource = false;
 					var feedback = _cacheStore.ReviewFeedback.FirstOrDefault(rf => rf.SourceId == mapping.SourceId && rf.ChannelId == channel.Id);
 					programmesHtml.Append($"<td class=\"review-feedback-column\" rowspan=\"1\">{string.Format(feedbackHtmlTemplate, feedback?.IsAccurate ?? false ? "checked" : string.Empty, feedback?.Offset ?? 0.0)}</td>");
+
+					if (!_cacheStore.EpgProgrammes.TryGetValue(mapping.SourceId, out var sourceProgrammes))
+					{
+						programmesHtml.Append("<td class=\"review-timeslot-column\" colspan=\"5\">No Info</td>");
+						programmesHtml.AppendLine("</tr>");
+						continue;
+					}
+
 					programmes = new EpgProgrammeList(_cacheStore.EpgProgrammes[mapping.SourceId].Where(p => p.ChannelId == mapping.EpgId && (p.StartTime.IsWithin(slotTimes[0], slotTimes[4].AddSeconds(-1)) || p.EndTime.IsWithin(slotTimes[0].AddSeconds(1), slotTimes[4]))).OrderBy(p => p.StartTime));
 					int skipped = 0;
 					for (int slot = 0; slot < 5; slot++)

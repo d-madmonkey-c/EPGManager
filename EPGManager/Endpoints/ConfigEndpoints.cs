@@ -28,30 +28,46 @@ public static class ConfigEndpoints
 
 		app.MapPost("/config", async (ConfigUpdate request, ConfigStore configStore, CacheStore cacheStore) =>
 		{
-			configStore.Logger.LogInformation("Saving config update: {Request}", JsonSerializer.Serialize(request, new JsonSerializerOptions { WriteIndented = true, Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping }));
+			//configStore.Logger.LogInformation("Saving config update: {Request}", JsonSerializer.Serialize(request, new JsonSerializerOptions { WriteIndented = true, Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping }));
 			var config = configStore.SourceConfig;
 
-			// M3U URL
-			config.M3uUrl = request.PrimaryUrl;
-
-			// EPG URLs
-			var epgUrls = request.EpgUrls;
-			for (int i = 0; i < epgUrls.Count; i++)
+			// M3U URLs
+			var m3uUrls = request.M3uUrls;
+			foreach(M3uSource source in m3uUrls)
 			{
 				// Generate a unique ID for this source
-				var epgUrl = epgUrls[i];
-				epgUrl.Id = string.IsNullOrEmpty(epgUrl.Id) ? $"user_{DateTime.UtcNow.Ticks}_{i}" : epgUrl.Id;
-				if (config.EpgUrls.Any(eu => eu.Id == epgUrl.Id))
+				if(string.IsNullOrEmpty(source.Id)) source.Id = Guid.NewGuid().ToString();
+				if (config.M3uUrls.Any(mu => mu.Id == source.Id))
 				{
-					var target = config.EpgUrls.First(eu => eu.Id == epgUrl.Id);
-					target.Priority = epgUrl.Priority;
-					target.Offset = epgUrl.Offset;
-					target.Name = epgUrl.Name;
-					target.Url = epgUrl.Url;
+					var target = config.M3uUrls.First(mu => mu.Id == source.Id);
+					target.Priority = source.Priority;
+					target.Name = source.Name;
+					target.Url = source.Url;
 				}
 				else
 				{
-					config.EpgUrls.Add(epgUrl);
+					config.M3uUrls.Add(source);
+				}
+			}
+			config.M3uUrls.RemoveAll(old => !m3uUrls.Any(mu => mu.Id == old.Id));
+
+			// EPG URLs
+			var epgUrls = request.EpgUrls;
+			foreach (EpgSource source in epgUrls)
+			{
+				// Generate a unique ID for this source
+				if (string.IsNullOrEmpty(source.Id)) source.Id = Guid.NewGuid().ToString();
+				if (config.EpgUrls.Any(eu => eu.Id == source.Id))
+				{
+					var target = config.EpgUrls.First(eu => eu.Id == source.Id);
+					target.Priority = source.Priority;
+					target.Offset = source.Offset;
+					target.Name = source.Name;
+					target.Url = source.Url;
+				}
+				else
+				{
+					config.EpgUrls.Add(source);
 				}
 			}
 			config.EpgUrls.RemoveAll(old => !epgUrls.Any(eu => eu.Id == old.Id));
