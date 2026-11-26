@@ -43,6 +43,48 @@ body {
 	width: 60px;
 }
 
+.epg-url-scroll {
+	max-height: 52vh;
+	min-height: 120px;
+	overflow: auto;
+	border: 1px solid #ccc;
+}
+
+#epg-url-table {
+	width: 100%;
+	table-layout: fixed;
+	border-collapse: collapse;
+}
+
+#epg-url-table thead th {
+	position: sticky;
+	top: 0;
+	z-index: 1;
+	background-color: #eeeeee;
+}
+
+#epg-url-table input {
+	box-sizing: border-box;
+	max-width: 100%;
+}
+
+.epg-url-actions {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+	margin-top: 8px;
+}
+
+.app-actions {
+	position: sticky;
+	bottom: 0;
+	z-index: 5;
+	margin-top: 8px;
+	padding: 8px 10px;
+	border: 1px solid #ccc;
+	background-color: #ffffff;
+}
+
 .panel {
 	padding: 2px 10px 2px 10px;
 	border: 1px solid #ccc;
@@ -81,6 +123,27 @@ body {
 	cursor: pointer;
 }
 
+#all-channels .channel-item {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto;
+	align-items: center;
+}
+
+#all-channels .channel-name {
+	grid-column: 1;
+	grid-row: 1;
+}
+
+#all-channels .channel-sources {
+	grid-column: 1;
+}
+
+#all-channels .channel-add {
+	grid-column: 2;
+	grid-row: 1 / span 2;
+	align-self: center;
+}
+
 .channel-item:hover {
 	background-color: #eef;
 }
@@ -103,6 +166,53 @@ body {
 	display: inline-block;
 	margin-left: 5px;
 	margin-right: 5px;
+}
+
+.channel-sources {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 4px;
+	margin: 2px 0 2px 5px;
+	font-size: 0.85em;
+	color: #444;
+}
+
+.channel-sources-label {
+	align-self: center;
+	font-weight: bold;
+}
+
+.channel-source-tag {
+	padding: 1px 5px;
+	border: 1px solid #bbb;
+	border-radius: 8px;
+	background-color: #f5f5f5;
+}
+
+.channel-source-tag.effective-source {
+	border-color: #60915b;
+	background-color: #e8f4e6;
+}
+
+.channel-settings-values {
+	display: grid;
+	grid-template-columns: max-content minmax(0, 1fr);
+	gap: 4px 8px;
+	margin: 0 0 16px;
+}
+
+.channel-settings-values dt {
+	font-weight: bold;
+}
+
+.channel-settings-values dd {
+	min-width: 0;
+	margin: 0;
+	overflow-wrap: anywhere;
+}
+
+#settings-effective-uri {
+	word-break: break-all;
 }
 
 .action-button {
@@ -192,6 +302,7 @@ body {
 /* Trash Icon */
 /* https: //codepen.io/msaetre/pen/bGJPyo */
 .icon-trash {
+	display: block;
 	width: 20px;
 	height: 20px;
 	position: relative;
@@ -199,6 +310,41 @@ body {
 	/*margin-left: 25px;
 	margin-bottom: 25px;*/
 	cursor: pointer;
+}
+
+#settings-epgList {
+	padding-left: 0;
+	list-style: none;
+}
+
+.epg-mapping-item {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin: 4px 0;
+}
+
+.epg-mapping-label {
+	flex: 1 1 auto;
+	min-width: 0;
+	overflow-wrap: anywhere;
+}
+
+.epg-mapping-remove {
+	display: flex;
+	flex: 0 0 32px;
+	align-items: center;
+	justify-content: center;
+	width: 32px;
+	height: 32px;
+	padding: 4px;
+	border: 0;
+	background: transparent;
+	cursor: pointer;
+}
+
+.epg-mapping-remove:hover {
+	background-color: #eeeeee;
 }
 
 .icon-trash .trash-lid {

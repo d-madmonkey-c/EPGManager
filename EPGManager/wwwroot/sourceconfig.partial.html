@@ -19,20 +19,26 @@
 <br /><br />
 
 <h3>EPG Source URLs (Prioritized)</h3>
-<table id="epg-url-table">
-	<thead>
-		<tr>
-			<th class="column-priority">Priority</th>
-			<th class="column-offset">Offset</th>
-			<th class="column-name">Name</th>
-			<th class="column-url">URL</th>
-			<th class="column-actions">Actions</th>
-		</tr>
-	</thead>
-	<tbody id="epg-url-list">
-		{1}
-	</tbody>
-</table>
-<button type="button" onclick="addEpgUrlRow()">Add URL</button><br />
-<button type="button" onclick="refreshAllEpg()" title="Download and cache all EPG files">↻ Refresh All EPG</button>
+<div class="epg-url-section">
+	<div class="epg-url-scroll">
+		<table id="epg-url-table">
+			<thead>
+				<tr>
+					<th class="column-priority">Priority</th>
+					<th class="column-offset">Offset</th>
+					<th class="column-name">Name</th>
+					<th class="column-url">URL</th>
+					<th class="column-actions">Actions</th>
+				</tr>
+			</thead>
+			<tbody id="epg-url-list">
+				{1}
+			</tbody>
+		</table>
+	</div>
+	<div class="epg-url-actions">
+		<button type="button" onclick="addEpgUrlRow()">Add URL</button>
+		<button type="button" onclick="refreshAllEpg()" title="Download and cache all EPG files">↻ Refresh All EPG</button>
+	</div>
+</div>
 <br /><br />

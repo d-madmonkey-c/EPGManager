@@ -20,18 +20,25 @@
 			<h3>Channel Name</h3>
 			<div style="margin-bottom: 20px;">
 				<h4>Default Values</h4>
-				<div style="display: inline-block;">Name:</div>
-				<div id='settings-default-name' style="display: inline-block;"></div><br />
-				<div style="display: inline-block;">Logo:</div>
-				<div id='settings-default-logo' style="display: inline-block;"></div><br />
-				<div style="display: inline-block;">Group:</div>
-				<div id='settings-default-group' style="display: inline-block;"></div><br />
+				<dl class="channel-settings-values">
+					<dt>Name</dt><dd id='settings-default-name'></dd>
+					<dt>Logo</dt><dd id='settings-default-logo'></dd>
+					<dt>Group</dt><dd id='settings-default-group'></dd>
+				</dl>
 			</div>
 
 			<h4>Overrides</h4>
 			<label>Name:</label><input id='settings-name' type='text' /><br />
 			<label>Logo:</label><input id='settings-logo' type='text' /><br />
 			<label>Groups:</label><input id='settings-groups' type="text"><br />
+
+			<h4>Effective Values</h4>
+			<dl class="channel-settings-values">
+				<dt>Name</dt><dd id='settings-effective-name'></dd>
+				<dt>Logo</dt><dd id='settings-effective-logo'></dd>
+				<dt>Groups</dt><dd id='settings-effective-groups'></dd>
+				<dt>Stream URL</dt><dd id='settings-effective-uri'></dd>
+			</dl>
 
 			<h4>EPG Mappings</h4>
 			<div id="epg-mappings">

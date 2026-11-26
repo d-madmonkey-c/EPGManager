@@ -251,6 +251,7 @@ public class Processor
 		var newChannelIds = _cacheStore.NewChannelIds ?? [];
 		var missingChannelIds = _cacheStore.MissingChannelIds ?? [];
 		var selectedChannels = _configStore.SelectedChannels;
+		var m3uSources = _configStore.SourceConfig.M3uUrls ?? [];
 
 		var grouped = channels
 			.GroupBy(c => c.Group ?? "Ungrouped")
@@ -262,7 +263,27 @@ public class Processor
 		string channelHtml = File.ReadAllText(templatePath);
 		var availableChannelsHtml = string.Join("", grouped.Select(g => string.Format(groupHtml, g.Key, string.Join("", g.Select(c =>
 		{
-			var channelItemHtml = string.Format(channelHtml, c.Id, c.Name, c.Group ?? "", c.LogoUri ?? "", c.Uri);
+			string sourceInfoHtml = string.Empty;
+			if (c.Sources.Count > 1)
+			{
+				var effectiveStreamSourceId = c.Sources
+					.OrderBy(source => source.Priority)
+					.FirstOrDefault(source => !string.IsNullOrWhiteSpace(source.Uri))?.SourceId;
+				var sourceLabels = c.Sources
+					.OrderBy(source => source.Priority)
+					.Select(source =>
+					{
+						var sourceName = m3uSources.FirstOrDefault(configured => configured.Id == source.SourceId)?.Name ?? source.SourceId;
+						bool suppliesEffectiveStream = source.SourceId == effectiveStreamSourceId;
+						string label = HtmlEncoder.Default.Encode(sourceName);
+						string streamMarker = suppliesEffectiveStream ? " (stream)" : string.Empty;
+						string effectiveClass = suppliesEffectiveStream ? " effective-source" : string.Empty;
+						return $"<span class=\"channel-source-tag{effectiveClass}\" title=\"Priority {source.Priority}\">{label}{streamMarker}</span>";
+					});
+				sourceInfoHtml = $"<div class=\"channel-sources\"><span class=\"channel-sources-label\">Sources:</span>{string.Join("", sourceLabels)}</div>";
+			}
+
+			var channelItemHtml = string.Format(channelHtml, c.Id, c.Name, c.Group ?? "", c.LogoUri ?? "", c.Uri, sourceInfoHtml);
 			if (newChannelIds.Contains(c.Id))
 			{
 				// Add new-channel class to the channel-item div
@@ -382,6 +403,7 @@ public class Processor
 			{
 				programmesHtml.Append($"<tr data-channelid=\"{channel.Id}\" data-sourceid=\"N/A\">");
 				programmesHtml.Append($"<td class=\"review-channel-column\" rowspan=\"1\">{string.Format(channelHtmlTemplate, channel.LogoUri, channel.Name)}</td>");
+				programmesHtml.Append("<td class=\"review-mapping-column\">No mapping</td>");
 				programmesHtml.Append($"<td class=\"review-feedback-column\" rowspan=\"1\">{string.Format(feedbackHtmlTemplate, string.Empty, string.Empty)}</td>");
 				programmesHtml.Append($"<td class=\"review-timeslot-column\" colspan=\"5\">No Info</td>");
 				programmesHtml.AppendLine("</tr>");
@@ -393,6 +415,8 @@ public class Processor
 					programmesHtml.Append($"<tr data-channelid=\"{channel.Id}\" data-sourceid=\"{mapping.SourceId}\">");
 					if (firstSource) programmesHtml.Append($"<td class=\"review-channel-column\" rowspan=\"{channel.EpgChannelIds.Count()}\">{string.Format(channelHtmlTemplate, channel.LogoUri, channel.Name)}</td>");
 					firstSource = false;
+					var mappingSourceName = _configStore.SourceConfig.EpgUrls.FirstOrDefault(es => es.Id == mapping.SourceId)?.Name ?? "Unknown";
+					programmesHtml.Append($"<td class=\"review-mapping-column\">{HtmlEncoder.Default.Encode(mappingSourceName)}<br /><code>{HtmlEncoder.Default.Encode(mapping.EpgId)}</code></td>");
 					var feedback = _cacheStore.ReviewFeedback.FirstOrDefault(rf => rf.SourceId == mapping.SourceId && rf.ChannelId == channel.Id);
 					programmesHtml.Append($"<td class=\"review-feedback-column\" rowspan=\"1\">{string.Format(feedbackHtmlTemplate, feedback?.IsAccurate ?? false ? "checked" : string.Empty, feedback?.Offset ?? 0.0)}</td>");
 

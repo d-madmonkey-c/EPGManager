@@ -85,7 +85,17 @@ function showSettings(channelNameElement) {
 	contentElement.querySelector('#settings-name').value = name;
 	contentElement.querySelector('#settings-logo').value = logo;
 	contentElement.querySelector('#settings-groups').value = groups;
-	contentElement.querySelector('#epg-mappings').innerHTML = renderEpgMappings(epgIds);
+	contentElement.querySelector('#epg-mappings').replaceChildren(renderEpgMappings(epgIds));
+	contentElement.querySelector('#settings-effective-uri').textContent = channelNameElement.dataset.uri || '';
+	const updateEffectiveValues = () => {
+		contentElement.querySelector('#settings-effective-name').textContent = contentElement.querySelector('#settings-name').value;
+		contentElement.querySelector('#settings-effective-logo').textContent = contentElement.querySelector('#settings-logo').value;
+		contentElement.querySelector('#settings-effective-groups').textContent = contentElement.querySelector('#settings-groups').value;
+	};
+	contentElement.querySelector('#settings-name').oninput = updateEffectiveValues;
+	contentElement.querySelector('#settings-logo').oninput = updateEffectiveValues;
+	contentElement.querySelector('#settings-groups').oninput = updateEffectiveValues;
+	updateEffectiveValues();
 	contentElement.querySelector('#settings-addepg').onclick = () => addEpgMapping(channelNameElement);
 	contentElement.querySelector('#settings-apply').onclick = () => applySettings(id);
 	document.getElementById('settings-placeholder').style.display = 'none';
@@ -121,36 +131,57 @@ function addM3uUrlRow(name = '', url = '', priority = '') {
 	tbody.appendChild(row);
 }
 
+function createEpgMappingItem(epg) {
+	const item = document.createElement('li');
+	item.className = 'epg-mapping-item';
+	item.setAttribute('data-sourceId', epg.SourceId);
+	item.setAttribute('data-sourceName', epg.SourceName);
+	item.setAttribute('data-epgId', epg.EpgId);
+
+	const label = document.createElement('span');
+	label.className = 'epg-mapping-label';
+	label.textContent = `${epg.SourceName}: ${epg.EpgId}`;
+	item.appendChild(label);
+
+	const removeButton = document.createElement('button');
+	removeButton.type = 'button';
+	removeButton.className = 'epg-mapping-remove';
+	removeButton.setAttribute('aria-label', `Remove EPG mapping ${epg.SourceName}: ${epg.EpgId}`);
+	removeButton.title = 'Remove EPG mapping';
+	removeButton.addEventListener('click', () => removeEpgMapping(removeButton));
+
+	const icon = document.createElement('span');
+	icon.className = 'icon-trash';
+	icon.setAttribute('aria-hidden', 'true');
+	['trash-lid', 'trash-container', 'trash-line-1', 'trash-line-2', 'trash-line-3'].forEach(className => {
+		const part = document.createElement('span');
+		part.className = className;
+		if (className === 'trash-lid' || className === 'trash-container') {
+			part.style.backgroundColor = '#4d4d4d';
+		}
+		icon.appendChild(part);
+	});
+	removeButton.appendChild(icon);
+	item.appendChild(removeButton);
+	return item;
+}
+
 function renderEpgMappings(epgIds) {
-	/*
-	<div class="icon-trash" style="float: left">
-		<div class="trash-lid" style="background-color: #2CC3B5"></div>
-		<div class="trash-container" style="background-color: #2CC3B5"></div>
-		<div class="trash-line-1"></div>
-		<div class="trash-line-2"></div>
-		<div class="trash-line-3"></div>
-		</div>
-	<div class="icon-trash" style="float: left"><div class="trash-lid" style="background-color: #2CC3B5"></div><div class="trash-container" style="background-color: #2CC3B5"></div><div class="trash-line-1"></div><div class="trash-line-2"></div><div class="trash-line-3"></div></div>
-	*/
-	var epgs = null;
+	var epgs;
 	try {
-		epgs = JSON.parse(epgIds);
+		epgs = JSON.parse(epgIds || '[]');
 	} catch (ex) {
 		console.error(ex);
 	}
-	if (!epgs || epgs.length <= 0) return '<p>No EPG mappings</p>';
-	var html = '<ul id="settings-epgList">';
-	for (var epg of epgs) {
-		html += `<li data-sourceId="${epg.SourceId}" data-sourceName="${epg.SourceName}" data-epgId="${epg.EpgId}">${epg.SourceName}: ${epg.EpgId}&nbsp;<div class="icon-trash" style="float: right" onclick='removeEpgMapping(this)'>
-			<div class="trash-lid" style="background-color: #4d4d4d"></div>
-			<div class="trash-container" style="background-color: #4d4d4d"></div>
-			<div class="trash-line-1"></div>
-			<div class="trash-line-2"></div>
-			<div class="trash-line-3"></div>
-		</div></li>`;
+	if (!Array.isArray(epgs) || epgs.length === 0) {
+		const emptyMessage = document.createElement('p');
+		emptyMessage.textContent = 'No EPG mappings';
+		return emptyMessage;
 	}
-	html += '</ul>';
-	return html;
+	const list = document.createElement('ul');
+	list.id = 'settings-epgList';
+	epgs.forEach(epg => list.appendChild(createEpgMappingItem(epg)));
+	return list;
 }
 
 function addEpgMapping(channelNameElement) {
@@ -237,22 +268,16 @@ function addSelectedEpgMapping(channelNameElement) {
 		var epgSection = document.getElementById('epg-mappings');
 		epgListElement = document.createElement('ul');
 		epgListElement.id = 'settings-epgList';
-		epgSection.firstChild.remove(); // Remove "No EPG mappings" text
-		epgSection.appendChild(epgListElement);
+		epgSection.replaceChildren(epgListElement);
 	}
-	var newEntry = document.createElement('li');
-	newEntry.setAttribute('data-sourceId', sourceId);
-	newEntry.setAttribute('data-sourceName', sourceName);
-	newEntry.setAttribute('data-epgId', channelId);
-	newEntry.textContent = `${sourceName}: ${channelId}`;
-	epgListElement.appendChild(newEntry);
+	epgListElement.appendChild(createEpgMappingItem({ SourceId: sourceId, SourceName: sourceName, EpgId: channelId }));
 
 	//alert(`Mapped to EPG source ${sourceId} channel ${channelId}`);
 	//showSettings(channelNameElement); // Refresh the UI
 }
 
-function removeEpgMapping(mappingElement) {
-	const mapping = mappingElement.closest('li');
+function removeEpgMapping(removeButton) {
+	const mapping = removeButton.closest('li');
 	if (mapping) {
 		mapping.remove();
 	}
