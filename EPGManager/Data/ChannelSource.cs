@@ -9,6 +9,7 @@ public class ChannelSource
 	public string TvgId { get; set; } = string.Empty;
 	public string Name { get; set; } = string.Empty;
 	public string? Group { get; set; }
+	public List<string> Groups { get; set; } = [];
 	public string? LogoUri { get; set; }
 	public string Uri { get; set; } = string.Empty;
 }

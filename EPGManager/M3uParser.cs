@@ -14,7 +14,7 @@ public static class M3uParser
 	public static ChannelList Parse(string sourceId, int priority, string m3uContent)
 	{
 		var lines = m3uContent.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
-		var result = new ChannelList();
+		var parsedSources = new List<ChannelSource>();
 
 		for (int i = 0; i < lines.Length - 1; i++)
 		{
@@ -38,7 +38,7 @@ public static class M3uParser
 			if (string.IsNullOrWhiteSpace(tvgId))
 				continue;
 
-			result.Add(new ChannelSource
+			parsedSources.Add(new ChannelSource
 			{
 				SourceId = sourceId,
 				Priority = priority,
@@ -52,6 +52,20 @@ public static class M3uParser
 			});
 
 			//i++; // skip URL
+		}
+
+		var result = new ChannelList();
+		foreach (var rows in parsedSources.GroupBy(source => source.TvgId, StringComparer.Ordinal))
+		{
+			var source = rows.Last();
+			source.Groups = rows
+				.Select(row => row.Group)
+				.Where(group => !string.IsNullOrWhiteSpace(group))
+				.Select(group => group!)
+				.Distinct(StringComparer.Ordinal)
+				.ToList();
+
+			result.Add(source);
 		}
 
 		return result;

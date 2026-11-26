@@ -8,6 +8,7 @@ public class Channel
 	public string TvgId { get; set; } = string.Empty;
 	public string Name { get; set; } = string.Empty;
 	public string? Group { get; set; }
+	public List<string> Groups { get; set; } = [];
 	public string? LogoUri { get; set; }
 	public string Uri { get; set; } = string.Empty; // URL from the M3U file
 	public List<ChannelSource> Sources { get; set; } = [];
@@ -42,7 +43,7 @@ public class Channel
 	public void RemoveSource(ChannelSource source)
 	{
 		int existingIndex = Sources.FindIndex(existing => existing.SourceId == source.SourceId);
-		if(existingIndex >= 0)
+		if (existingIndex >= 0)
 		{
 			Sources.RemoveAt(existingIndex);
 			RecalculateEffectiveValues();
@@ -56,6 +57,12 @@ public class Channel
 		TvgId = ordered.Select(source => source.TvgId).FirstOrDefault(value => !string.IsNullOrWhiteSpace(value)) ?? string.Empty;
 		Name = ordered.Select(source => source.Name).FirstOrDefault(value => !string.IsNullOrWhiteSpace(value)) ?? string.Empty;
 		Group = ordered.Select(source => source.Group).FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
+		Groups = ordered
+			.SelectMany(source => source.Groups.Append(source.Group))
+			.Where(group => !string.IsNullOrWhiteSpace(group))
+			.Select(group => group!)
+			.Distinct(StringComparer.Ordinal)
+			.ToList();
 		LogoUri = ordered.Select(source => source.LogoUri).FirstOrDefault(value => !string.IsNullOrWhiteSpace(value));
 		Uri = ordered.Select(source => source.Uri).FirstOrDefault(value => !string.IsNullOrWhiteSpace(value)) ?? string.Empty;
 	}
@@ -128,12 +135,11 @@ public class ChannelList : List<Channel>
 
 	public void Combine(ChannelList other)
 	{
-		foreach(Channel channel in other)
+		foreach (Channel channel in other)
 		{
 			Add(channel);
 		}
 	}
-
 
 	internal static class ChannelMatcher
 	{

@@ -1,4 +1,177 @@
 // Global variables
+const availableChannelFilters = {
+	searchText: '',
+	showNewOnly: false,
+	hiddenGroups: new Set()
+};
+
+function getAvailableChannelGroups(channel) {
+	try {
+		const groups = JSON.parse(channel.dataset.groups || '[]');
+		if (Array.isArray(groups) && groups.length > 0) {
+			return groups
+				.map(group => String(group).trim())
+				.filter(Boolean);
+		}
+	} catch (error) {
+		console.error('Invalid channel group metadata:', error);
+	}
+
+	const effectiveGroup = (channel.dataset.group || '').trim();
+	return effectiveGroup ? [effectiveGroup] : [];
+}
+
+function populateAvailableChannelHiddenGroups() {
+	const hiddenGroupList = document.getElementById('available-channel-hidden-group-list');
+	if (!hiddenGroupList) {
+		return;
+	}
+
+	const groups = new Set();
+
+	document.querySelectorAll('#all-channels .channel-item').forEach(channel => {
+		getAvailableChannelGroups(channel).forEach(group => groups.add(group));
+	});
+
+	hiddenGroupList.replaceChildren();
+
+	[...groups]
+		.sort((left, right) => left.localeCompare(right))
+		.forEach(group => {
+			const label = document.createElement('label');
+			label.className = 'available-channel-hidden-group';
+
+			const checkbox = document.createElement('input');
+			checkbox.type = 'checkbox';
+			checkbox.value = group;
+			checkbox.checked = availableChannelFilters.hiddenGroups.has(group);
+
+			checkbox.addEventListener('change', () => {
+				if (checkbox.checked) {
+					availableChannelFilters.hiddenGroups.add(group);
+				} else {
+					availableChannelFilters.hiddenGroups.delete(group);
+				}
+
+				applyAvailableChannelFilters();
+			});
+
+			label.append(checkbox, document.createTextNode(` ${group}`));
+			hiddenGroupList.appendChild(label);
+		});
+}
+
+function applyAvailableChannelFilters() {
+	const searchText = availableChannelFilters.searchText.trim().toLocaleLowerCase();
+	const visibleChannelIds = new Set();
+
+	const channels = [...document.querySelectorAll('#all-channels .channel-item')];
+
+	channels.forEach(channel => {
+		const name = (channel.dataset.name || '').toLocaleLowerCase();
+		const isNew = (channel.dataset.new || 'false') === 'true';
+		const channelGroups = getAvailableChannelGroups(channel);
+
+		const matchesSearch =
+			searchText.length === 0 ||
+			name.includes(searchText);
+
+		const matchesNew =
+			!availableChannelFilters.showNewOnly ||
+			isNew;
+
+		const matchesHiddenGroups =
+			!channelGroups.some(group =>
+				availableChannelFilters.hiddenGroups.has(group));
+
+		const visible = matchesSearch && matchesNew && matchesHiddenGroups;
+		channel.style.display = visible ? '' : 'none';
+
+		if (visible) {
+			visibleChannelIds.add(channel.dataset.id);
+		}
+	});
+
+	const totalChannelCount = new Set(channels.map(channel => channel.dataset.id)).size;
+
+	document.querySelectorAll('#all-channels .group-title').forEach(groupElement => {
+		const visibleChannel = groupElement.querySelector(
+			'.group-content .channel-item:not([style*="display: none"])'
+		);
+
+		groupElement.style.display = visibleChannel ? '' : 'none';
+	});
+
+	const countElement = document.getElementById('available-channel-result-count');
+	if (countElement) {
+		countElement.textContent = `Showing ${visibleChannelIds.size} of ${totalChannelCount} channels`;
+	}
+
+	const emptyElement = document.getElementById('available-channel-empty');
+	if (emptyElement) {
+		emptyElement.style.display =
+			totalChannelCount > 0 && visibleChannelIds.size === 0 ? 'block' : 'none';
+	}
+
+	const panelBody = document.querySelector('#all-channels .panel-body');
+	if (panelBody) {
+		panelBody.style.display =
+			totalChannelCount > 0 && visibleChannelIds.size === 0 ? 'none' : '';
+	}
+}
+
+function clearAvailableChannelFilters() {
+	availableChannelFilters.searchText = '';
+	availableChannelFilters.showNewOnly = false;
+	availableChannelFilters.hiddenGroups.clear();
+
+	const searchInput = document.getElementById('available-channel-search-input');
+	if (searchInput) {
+		searchInput.value = '';
+	}
+
+	const newOnlyInput = document.getElementById('available-channel-new-only');
+	if (newOnlyInput) {
+		newOnlyInput.checked = false;
+	}
+
+	document
+		.querySelectorAll('#available-channel-hidden-group-list input[type="checkbox"]')
+		.forEach(checkbox => {
+			checkbox.checked = false;
+		});
+
+	applyAvailableChannelFilters();
+}
+
+function initializeAvailableChannelFilters() {
+	const searchInput = document.getElementById('available-channel-search-input');
+	const newOnlyInput = document.getElementById('available-channel-new-only');
+	const clearButton = document.getElementById('available-channel-clear-filters');
+
+	if (searchInput) {
+		searchInput.value = availableChannelFilters.searchText;
+		searchInput.oninput = () => {
+			availableChannelFilters.searchText = searchInput.value;
+			applyAvailableChannelFilters();
+		};
+	}
+
+	if (newOnlyInput) {
+		newOnlyInput.checked = availableChannelFilters.showNewOnly;
+		newOnlyInput.onchange = () => {
+			availableChannelFilters.showNewOnly = newOnlyInput.checked;
+			applyAvailableChannelFilters();
+		};
+	}
+
+	if (clearButton) {
+		clearButton.onclick = clearAvailableChannelFilters;
+	}
+
+	populateAvailableChannelHiddenGroups();
+	applyAvailableChannelFilters();
+}
 
 function toggleGroup(groupName) {
 	const content = document.getElementById('group-' + groupName);
@@ -13,7 +186,7 @@ function toggleGroup(groupName) {
 	}
 }
 
-function addChannel(id, name) {
+function addChannel(id, selectedChannel) {
 	var list = document.getElementById('selected-list');
 
 	// Prevent duplicates
@@ -21,7 +194,6 @@ function addChannel(id, name) {
 		return;
 
 	// Get the original values from the clicked element
-	var selectedChannel = document.getElementById(`available-${id}`);
 	var name = selectedChannel.dataset.name || '';
 	var group = selectedChannel.dataset.group || null;
 	var logo = selectedChannel.dataset.logo || null;
@@ -48,6 +220,9 @@ function addChannel(id, name) {
 
 	var nameElement = document.createElement('div');
 	nameElement.className = 'channel-name';
+	nameElement.dataset.sourceName = name;
+	nameElement.dataset.sourceLogo = logo;
+	nameElement.dataset.sourceGroup = group || '';
 	nameElement.dataset.id = id;
 	nameElement.dataset.name = name;
 	nameElement.dataset.logo = logo;
@@ -72,10 +247,9 @@ function showSettings(channelNameElement) {
 	var groups = channelNameElement.dataset.groups;
 	var epgIds = channelNameElement.dataset.epgids;
 
-	var sourceChannel = document.getElementById(`available-${id}`);
-	var sourceName = sourceChannel.dataset.name;
-	var sourceLogo = sourceChannel.dataset.logo;
-	var sourceGroup = sourceChannel.dataset.group;
+	var sourceName = channelNameElement.dataset.sourceName || name;
+	var sourceLogo = channelNameElement.dataset.sourceLogo || '';
+	var sourceGroup = channelNameElement.dataset.sourceGroup || '';
 
 	var contentElement = document.getElementById('settings-content');
 	contentElement.querySelector("h3").textContent = name;
@@ -501,6 +675,7 @@ function refreshChannelsTab() {
 		})
 		.then(data => {
 			document.getElementById("tab-content-channels").innerHTML = data;
+			initializeAvailableChannelFilters();
 		})
 		.catch(error => alert('Error refreshing Channels: ' + error.message));
 }
@@ -510,6 +685,8 @@ function refreshChannelsTab() {
 let draggedItem = null;
 
 document.addEventListener('DOMContentLoaded', () => {
+	initializeAvailableChannelFilters();
+
 	const list = document.getElementById('selected-list');
 
 	list.addEventListener('dragstart', (e) => {

@@ -1,6 +1,34 @@
 <div class="channels-layout">
 	<div class='panel' id='all-channels'>
 		<h2>Available Channels</h2>
+
+		<div id="available-channel-filters" class="available-channel-filters">
+			<div class="available-channel-search">
+				<label for="available-channel-search-input">Search</label>
+				<input id="available-channel-search-input" type="search" placeholder="Search channel names" autocomplete="off">
+			</div>
+
+			<label class="available-channel-checkbox">
+				<input id="available-channel-new-only" type="checkbox">
+				New Channels
+			</label>
+
+			<details class="available-channel-hidden-groups">
+				<summary>Hidden Groups</summary>
+				<div id="available-channel-hidden-group-list"></div>
+			</details>
+
+			<div class="available-channel-filter-actions">
+				<span id="available-channel-result-count">Showing 0 of 0 channels</span>
+				<button id="available-channel-clear-filters" type="button">Clear Filters</button>
+			</div>
+		</div>
+
+		<div id="available-channel-empty" class="available-channel-empty" style="display: none;">
+			<p>No channels match the current filters.</p>
+			<button type="button" onclick="clearAvailableChannelFilters()">Clear Filters</button>
+		</div>
+
 		<div class="panel-body">
 			{0}
 		</div>

@@ -69,10 +69,25 @@ public class Processor
 			}
 
 			// Identify new channels
-			var newIds = newChannels.Select(c => c.Id).Except(_cacheStore.Channels.Select(c => c.Id)).ToList();
-			_cacheStore.NewChannelIds = newIds;
+			var previousTvgIds = _cacheStore.Channels
+				.Select(channel => channel.TvgId)
+				.Where(tvgId => !string.IsNullOrWhiteSpace(tvgId))
+				.ToHashSet(StringComparer.Ordinal);
+
+			var parsedTvgIds = newChannels
+				.Select(channel => channel.TvgId)
+				.Where(tvgId => !string.IsNullOrWhiteSpace(tvgId))
+				.ToHashSet(StringComparer.Ordinal);
 
 			_cacheStore.Channels.Combine(newChannels);
+
+			_cacheStore.NewChannelIds = _cacheStore.Channels
+				.Where(channel =>
+					!string.IsNullOrWhiteSpace(channel.TvgId) &&
+					parsedTvgIds.Contains(channel.TvgId) &&
+					!previousTvgIds.Contains(channel.TvgId))
+				.Select(channel => channel.Id)
+				.ToList();
 
 			// Identify missing channels
 			var missingIds = _configStore.SelectedChannels.Select(c => c.Id).Except(_cacheStore.Channels.Select(c => c.Id)).ToList();
@@ -86,7 +101,7 @@ public class Processor
 			// }
 
 			_cacheStore.SaveAll();
-			_logger.LogInformation($"M3U refresh completed. Found {newChannels.Count} channels, {newIds.Count} new.");
+			_logger.LogInformation($"M3U refresh completed. Found {newChannels.Count} channels, {_cacheStore.NewChannelIds.Count} new.");
 		}
 		catch (Exception ex)
 		{
@@ -104,17 +119,34 @@ public class Processor
 			var channels = M3uParser.Parse(source.Id, source.Priority, m3uText);
 
 			// Identify new channels
-			var newIds = channels.Select(c => c.Id).Except(_cacheStore.Channels.Where(c => c.Sources.Any(s => s.SourceId == id)).Select(c => c.Id)).ToList();
-			_cacheStore.NewChannelIds = newIds;
+			var previousSourceTvgIds = _cacheStore.Channels
+				.Where(channel => channel.Sources.Any(source => source.SourceId == id))
+				.Select(channel => channel.TvgId)
+				.Where(tvgId => !string.IsNullOrWhiteSpace(tvgId))
+				.ToHashSet(StringComparer.Ordinal);
+
+			var newTvgIds = channels
+				.Select(channel => channel.TvgId)
+				.Where(tvgId =>
+					!string.IsNullOrWhiteSpace(tvgId) &&
+					!previousSourceTvgIds.Contains(tvgId))
+				.ToHashSet(StringComparer.Ordinal);
 
 			_cacheStore.Channels.Combine(channels);
+
+			_cacheStore.NewChannelIds = _cacheStore.Channels
+				.Where(channel =>
+					!string.IsNullOrWhiteSpace(channel.TvgId) &&
+					newTvgIds.Contains(channel.TvgId))
+				.Select(channel => channel.Id)
+				.ToList();
 
 			// Identify missing channels
 			var missingIds = _configStore.SelectedChannels.Select(c => c.Id).Except(_cacheStore.Channels.Select(c => c.Id)).ToList();
 			_cacheStore.MissingChannelIds = missingIds;
 
 			_cacheStore.SaveAll();
-			_logger.LogInformation($"M3U refresh completed. Found {channels.Count} channels, {newIds.Count} new.");
+			_logger.LogInformation($"M3U refresh completed. Found {channels.Count} channels, {_cacheStore.NewChannelIds.Count} new.");
 		}
 		catch (Exception ex)
 		{
@@ -254,15 +286,22 @@ public class Processor
 		var m3uSources = _configStore.SourceConfig.M3uUrls ?? [];
 
 		var grouped = channels
-			.GroupBy(c => c.Group ?? "Ungrouped")
-			.OrderBy(g => g.Key)
+			.SelectMany(channel =>
+				(channel.Groups.Count > 0
+					? channel.Groups
+					: new List<string> { channel.Group ?? "Ungrouped" })
+				.Distinct(StringComparer.Ordinal)
+				.Select(group => new { Group = group, Channel = channel }))
+			.GroupBy(item => item.Group, StringComparer.Ordinal)
+			.OrderBy(group => group.Key, StringComparer.Ordinal)
 			.ToList();
 		string templatePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "availablegroup.partial.html");
 		string groupHtml = File.ReadAllText(templatePath);
 		templatePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "availablechannel.partial.html");
 		string channelHtml = File.ReadAllText(templatePath);
-		var availableChannelsHtml = string.Join("", grouped.Select(g => string.Format(groupHtml, g.Key, string.Join("", g.Select(c =>
+		var availableChannelsHtml = string.Join("", grouped.Select(g => string.Format(groupHtml, g.Key, string.Join("", g.OrderBy(item => item.Channel.Name, StringComparer.OrdinalIgnoreCase).ThenBy(item => item.Channel.TvgId, StringComparer.Ordinal).Select(item =>
 		{
+			var c = item.Channel;
 			string sourceInfoHtml = string.Empty;
 			if (c.Sources.Count > 1)
 			{
@@ -283,7 +322,17 @@ public class Processor
 				sourceInfoHtml = $"<div class=\"channel-sources\"><span class=\"channel-sources-label\">Sources:</span>{string.Join("", sourceLabels)}</div>";
 			}
 
-			var channelItemHtml = string.Format(channelHtml, c.Id, c.Name, c.Group ?? "", c.LogoUri ?? "", c.Uri, sourceInfoHtml);
+			var channelItemHtml = string.Format(
+				channelHtml,
+				HtmlEncoder.Default.Encode(c.Id),
+				HtmlEncoder.Default.Encode(c.Name),
+				HtmlEncoder.Default.Encode(item.Group ?? ""),
+				HtmlEncoder.Default.Encode(c.LogoUri ?? ""),
+				HtmlEncoder.Default.Encode(c.Uri),
+				HtmlEncoder.Default.Encode(JsonSerializer.Serialize(c.Groups)),
+				newChannelIds.Contains(c.Id).ToString().ToLowerInvariant(),
+				sourceInfoHtml
+			);
 			if (newChannelIds.Contains(c.Id))
 			{
 				// Add new-channel class to the channel-item div
@@ -309,15 +358,17 @@ public class Processor
 			c.Uri,
 			string.Join(", ", c.Groups),
 			HtmlEncoder.Default.Encode(JsonSerializer.Serialize(c.EpgChannelIds
-				.Select(eci => new {
-						Mapping = eci,
-						Source = epgSources.FirstOrDefault(eu => eu.Id == eci.SourceId)
+				.Select(eci => new
+				{
+					Mapping = eci,
+					Source = epgSources.FirstOrDefault(eu => eu.Id == eci.SourceId)
 				})
 				.OrderBy(item => item.Source?.Priority ?? int.MaxValue)
-				.Select(item => new	{
-						SourceId = item.Mapping.SourceId,
-						SourceName = item.Source?.Name ?? "Unknown",
-						EpgId = item.Mapping.EpgId
+				.Select(item => new
+				{
+					SourceId = item.Mapping.SourceId,
+					SourceName = item.Source?.Name ?? "Unknown",
+					EpgId = item.Mapping.EpgId
 				})
 			))
 		)));
@@ -374,7 +425,7 @@ public class Processor
 		/*<div class="review-epg" id="review-epg-{0}"><div id="review-epg-{0}-name">{1}</div><div id="review-epg-{0}-coverage">{2}</div><div id="review-epg-{0}-accuracy">{3}</div></div>*/
 		string templatePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "reviewepgsource.partial.html");
 		string epgsourcesHtml = File.ReadAllText(templatePath);
-		epgsourcesHtml = string.Join("\n", _configStore.SourceConfig.EpgUrls.OrderBy(s=>s.Priority).ThenBy(s => s.Name).Select(es => string.Format(epgsourcesHtml,
+		epgsourcesHtml = string.Join("\n", _configStore.SourceConfig.EpgUrls.OrderBy(s => s.Priority).ThenBy(s => s.Name).Select(es => string.Format(epgsourcesHtml,
 			es.Id,
 			es.Name,
 			allMappings[es.Id].Count() / totalChannels,
