@@ -36,6 +36,67 @@
 				"${workspaceFolder}/EPGManager/EPGManager.csproj"
 			],
 			"problemMatcher": "$msCompile"
+		},
+		{
+			"label": "EPG Publish",
+			"type": "shell",
+			"command": "dotnet publish -c Release -r linux-arm64 --self-contained false",
+			"options": {
+				"cwd": "${workspaceFolder}/EPGManager"
+			},
+			"problemMatcher": "$msCompile"
+		},
+		{
+			"label": "EPG Remove Compression Files",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-Command",
+				"Get-ChildItem \"${workspaceFolder}\\EPGManager\\bin\\Release\\net10.0\\linux-arm64\\publish\" -Include *.br,*.gz -Recurse | Remove-Item -Force"
+			]
+		},
+		{
+			"label": "EPG Copy To Pi",
+			"type": "shell",
+			"command": "scp",
+			"args": [
+				"-i",
+				"C:\\Users\\david\\.ssh\\MonkeyPlex_dcutler",
+				"-r",
+				"${workspaceFolder}/EPGManager/bin/Release/net10.0/linux-arm64/publish",
+				"dcutler@monkeyplex:/home/dcutler/upload/"
+			]
+		},
+		{
+			"label": "EPG Deploy On Pi",
+			"type": "shell",
+			"command": "ssh",
+			"args": [
+				"-t",
+				"-i",
+				"C:\\Users\\david\\.ssh\\MonkeyPlex_dcutler",
+				"dcutler@monkeyplex",
+				"/home/dcutler/epgdeploy.sh"
+			],
+			"presentation": {
+				"reveal": "always"
+			}
+		},
+		{
+			"label": "Build Publish Deploy",
+			"dependsOrder": "sequence",
+			"dependsOn": [
+				"EPG Publish",
+				"EPG Remove Compression Files",
+				"EPG Copy To Pi",
+				"EPG Deploy On Pi"
+			],
+			"presentation": {
+				"panel": "dedicated",
+				"reveal": "always",
+				"focus": true,
+				"clear": true
+			}
 		}
 	]
 }
