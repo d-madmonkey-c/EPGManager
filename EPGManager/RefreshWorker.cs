@@ -62,12 +62,14 @@ public class RefreshWorker : BackgroundService
 
 	private async Task RefreshAsync(CancellationToken ct)
 	{
-		_logger.LogInformation("RefreshWorker: Refreshing M3U.");
-		await _processor.RefreshM3uAsync();
+		// _logger.LogInformation("RefreshWorker: Refreshing M3U.");
+		// await _processor.RefreshM3uAsync();
 		_logger.LogInformation("RefreshWorker: Refreshing EPGs.");
-		await _processor.RefreshEpgAsync();
-		_logger.LogInformation("RefreshWorker: Generating outputs.");
-		await _processor.GenerateOutputs();
+		await _processor.RefreshEpgAsync(ct);
+		// _logger.LogInformation("RefreshWorker: Generating outputs.");
+		// await _processor.GenerateOutputs();
+		_logger.LogInformation("RefreshWorker: Generating output EPG.");
+		await _processor.GenerateEpg(ct);
 		_processor.LastRefresh = DateTime.Now;
 		_logger.LogInformation("Refresh completed.");
 	}

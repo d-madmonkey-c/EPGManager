@@ -184,10 +184,15 @@ public class Processor
 		_logger.LogInformation("Generating M3U..");
 		_outputStore.M3u = M3uBuilder.Build(_configStore.SelectedChannels);
 		_logger.LogInformation("M3U Generated with {ChannelCount} channels.", _configStore.SelectedChannels.Count);
+		await GenerateEpg(ct);
+#pragma warning restore CA1873
+	}
+
+	public async Task GenerateEpg(CancellationToken ct = default)
+	{
 		_logger.LogInformation("Generating EPG...");
 		_outputStore.Epg = EpgBuilder.Build(_configStore.SelectedChannels, _configStore.SourceConfig.EpgUrls, _cacheStore);
 		_logger.LogInformation("Genereated EPG with {ProgrammeCount} programmes.", _outputStore.Epg.Root?.Elements("programme").Count() ?? 0);
-#pragma warning restore CA1873
 	}
 
 	private async Task<string> DownloadText(string url, CancellationToken ct)
